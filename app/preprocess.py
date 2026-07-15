@@ -18,8 +18,19 @@ def main():
     feature_data = urls.apply(extract_features)
 
     features_df = pd.DataFrame(feature_data.tolist())
+    
+    # Convert labels to project standard
+    # Original UCI:
+    # 1 = Legitimate
+    # 0 = Phishing
 
-    features_df["label"] = df["label"]
+    # Project Standard:
+    # 0 = Legitimate
+    # 1 = Phishing
+    features_df["label"] = df["label"].map({
+        1: 0,   # Legitimate
+        0: 1    # Phishing
+    })
 
     print("Saving features...")
     features_df.to_csv("../data/features.csv", index=False)
