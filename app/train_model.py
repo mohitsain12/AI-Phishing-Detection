@@ -1,181 +1,588 @@
+# ==========================================================
+# AI PHISHING DETECTION
+# Module 3 : Model Training
+# ==========================================================
+
+import os
+import joblib
 import pandas as pd
 import matplotlib.pyplot as plt
 
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
-# from sklearn.svm import LinearSVC
 
-import os
-from joblib import dump
+from sklearn.metrics import (
+    accuracy_score,
+    precision_score,
+    recall_score,
+    f1_score,
+    roc_auc_score,
+    classification_report,
+    confusion_matrix,
+    ConfusionMatrixDisplay
+)
+
+# ==========================================================
+# Create Required Folders
+# ==========================================================
 
 os.makedirs("../models", exist_ok=True)
 os.makedirs("../graphs", exist_ok=True)
 
-# ============================
+# ==========================================================
 # Load Dataset
-# ============================
+# ==========================================================
 
-try:
-    df = pd.read_csv("../data/features.csv")
-    print("Dataset loaded successfully.\n")
-except FileNotFoundError:
-    print("Error: features.csv not found.")
-    exit()
+def load_dataset():
 
-# ============================
-# Check Dataset
-# ============================
+    print("=" * 60)
+    print("Loading Dataset")
+    print("=" * 60)
 
-if "label" not in df.columns:
-    raise ValueError("Dataset must contain a 'label' column.")
+    try:
+        df = pd.read_csv("../data/features.csv")
 
-if df.isnull().sum().sum() > 0:
-    print("Warning: Missing values detected.")
-    print(df.isnull().sum())
+    except FileNotFoundError:
+        print("Error : features.csv not found.")
+        exit()
+
+    print(f"Dataset Loaded Successfully")
+    print(f"Rows    : {df.shape[0]}")
+    print(f"Columns : {df.shape[1]}")
     print()
 
-# ============================
-# Features and Labels
-# ============================
+    return df
 
-X = df.drop(columns=["label"])
-y = df["label"]
+# ==========================================================
+# Validate Dataset
+# ==========================================================
 
-feature_names = X.columns
+def validate_dataset(df):
 
-# ============================
-# Train-Test Split
-# ============================
+    print("=" * 60)
+    print("Dataset Validation")
+    print("=" * 60)
 
-X_train, X_test, y_train, y_test = train_test_split(
-    X,
-    y,
-    test_size=0.20,
-    random_state=42,
-    stratify=y
-)
+    if "label" not in df.columns:
+        raise ValueError("Dataset must contain 'label' column.")
 
-print("Training Samples :", len(X_train))
-print("Testing Samples  :", len(X_test))
-print()
+    print("No Missing Values")
 
-# ============================
-# Define Models
-# ============================
+    print(df.isnull().sum())
 
-from sklearn.svm import LinearSVC
+    print()
 
-models = {
-    "Logistic Regression": LogisticRegression(max_iter=1000),
-    "Decision Tree": DecisionTreeClassifier(random_state=42),
-    "Random Forest": RandomForestClassifier(random_state=42),
-    "KNN": KNeighborsClassifier()
-}
+    print("Dataset Information")
 
+    print(df.info())
 
-results = {}
-trained_models = {}
+    print()
 
-# ============================
-# Train and Evaluate Models
-# ============================
+    print("Class Distribution")
 
-print("=" * 45)
-print("Training Models")
-print("=" * 45)
+    print(df["label"].value_counts())
 
-# for name, model in models.items():
-
-#     model.fit(X_train, y_train)
-
-#     predictions = model.predict(X_test)
-
-#     accuracy = accuracy_score(y_test, predictions)
-
-#     results[name] = accuracy
-
-#     print(f"{name:<25} {accuracy:.4f}")
-for name, model in models.items():
-
-    print(f"Training {name}...")
-
-    model.fit(X_train, y_train)
-
-    predictions = model.predict(X_test)
-
-    accuracy = accuracy_score(y_test, predictions)
-
-    results[name] = accuracy
-    trained_models[name] = model
-
-    print(f"{name:<25} {accuracy:.4f}")
-    print(f"{name} completed!")  
-    print("\n" + "=" * 45)
+    print()
     
-# ============================
-# Best Model
-# ============================
+# ==========================================================
+# Split Dataset
+# ==========================================================
 
-best_model_name = max(results, key=results.get)
+def split_dataset(df):
 
-best_model = trained_models[best_model_name]
+    X = df.drop(columns=["label"])
 
-# Save Best Model
-dump(best_model, "../models/phishing_detector_model.pkl")
-dump(feature_names.tolist(), "../models/phishing_feature_names.pkl")
+    y = df["label"]
 
-# Save Feature Names
-dump(feature_names.tolist(), "../models/feature_names.pkl")
+    feature_names = X.columns.tolist()
 
-print("\nBest model saved successfully!")
+    return X, y, feature_names
 
-print("\n" + "=" * 45)
-print("Best Model")
-print("=" * 45)
-print(best_model_name)
-print(f"Accuracy : {results[best_model_name]*100:.2f}%")
+# ==========================================================
+# Train Test Split
+# ==========================================================
 
-# ============================
-# Plot Accuracy
-# ============================
+def create_train_test_split(X, y):
 
-plt.figure(figsize=(9, 5))
+    X_train, X_test, y_train, y_test = train_test_split(
 
-bars = plt.bar(results.keys(), results.values())
+        X,
 
-plt.title("Machine Learning Model Comparison")
-plt.xlabel("Models")
-plt.ylabel("Accuracy")
-plt.ylim(0, 1)
+        y,
 
-plt.xticks(rotation=20)
+        test_size=0.20,
 
-# Add Accuracy Labels
-for bar in bars:
-    height = bar.get_height()
-    plt.text(
-        bar.get_x() + bar.get_width()/2,
-        height + 0.01,
-        f"{height*100:.2f}%",
-        ha="center",
-        fontsize=9
+        random_state=42,
+
+        stratify=y
+
     )
 
-plt.tight_layout()
+    print("=" * 60)
 
-plt.tight_layout()
+    print("Train Test Split")
 
-plt.savefig(
-    "../screenshots/model_comparison.png",
-    dpi=300,
-    bbox_inches="tight"
-)
+    print("=" * 60)
 
-print("Graph saved successfully!")
+    print(f"Training Samples : {len(X_train)}")
 
-plt.show()
+    print(f"Testing Samples  : {len(X_test)}")
+
+    print()
+
+    return X_train, X_test, y_train, y_test
+
+# ==========================================================
+# Machine Learning Models
+# ==========================================================
+
+def create_models():
+
+    models = {
+
+        "Logistic Regression": LogisticRegression(
+            max_iter=1000,
+            random_state=42
+        ),
+
+        "Decision Tree": DecisionTreeClassifier(
+            random_state=42
+        ),
+
+        "Random Forest": RandomForestClassifier(
+            n_estimators=200,
+            random_state=42,
+            n_jobs=-1
+        ),
+
+        "KNN": KNeighborsClassifier(
+            n_neighbors=5
+        )
+
+    }
+
+    return models
+
+# ==========================================================
+# Train & Evaluate Models
+# ==========================================================
+
+def train_models(models, X_train, X_test, y_train, y_test):
+
+    print("=" * 60)
+    print("Training Machine Learning Models")
+    print("=" * 60)
+
+    results = {}
+    trained_models = {}
+
+    for name, model in models.items():
+
+        print(f"\nTraining {name}...")
+
+        # --------------------------
+        # Train Model
+        # --------------------------
+
+        model.fit(X_train, y_train)
+
+        # --------------------------
+        # Predictions
+        # --------------------------
+
+        predictions = model.predict(X_test)
+
+        # Probability Prediction
+        # (Not all models support it)
+        # --------------------------
+
+        if hasattr(model, "predict_proba"):
+
+            probabilities = model.predict_proba(X_test)[:, 1]
+
+            roc_auc = roc_auc_score(
+                y_test,
+                probabilities
+            )
+
+        else:
+
+            roc_auc = None
+
+        # --------------------------
+        # Evaluation Metrics
+        # --------------------------
+
+        accuracy = accuracy_score(
+            y_test,
+            predictions
+        )
+
+        precision = precision_score(
+            y_test,
+            predictions
+        )
+
+        recall = recall_score(
+            y_test,
+            predictions
+        )
+
+        f1 = f1_score(
+            y_test,
+            predictions
+        )
+
+        # --------------------------
+        # Store Results
+        # --------------------------
+
+        results[name] = {
+
+            "Accuracy": accuracy,
+
+            "Precision": precision,
+
+            "Recall": recall,
+
+            "F1 Score": f1,
+
+            "ROC AUC": roc_auc
+
+        }
+
+        trained_models[name] = model
+
+        # --------------------------
+        # Display Results
+        # --------------------------
+
+        print("-" * 40)
+
+        print(f"Accuracy  : {accuracy:.4f}")
+
+        print(f"Precision : {precision:.4f}")
+
+        print(f"Recall    : {recall:.4f}")
+
+        print(f"F1 Score  : {f1:.4f}")
+
+        if roc_auc is not None:
+            print(f"ROC AUC   : {roc_auc:.4f}")
+
+        else:
+            print("ROC AUC   : Not Available")
+
+        print("-" * 40)
+
+        print("\nClassification Report\n")
+
+        print(
+
+            classification_report(
+
+                y_test,
+
+                predictions
+
+            )
+
+        )
+
+    return results, trained_models
+
+# ==========================================================
+# Best Model
+# ==========================================================
+
+def get_best_model(results, trained_models):
+
+    best_model_name = max(
+
+        results,
+
+        key=lambda x: results[x]["Accuracy"]
+
+    )
+
+    best_model = trained_models[best_model_name]
+
+    print("=" * 60)
+
+    print("Best Model")
+
+    print("=" * 60)
+
+    print(best_model_name)
+
+    print()
+
+    for metric, value in results[best_model_name].items():
+
+        if value is not None:
+
+            print(f"{metric:<12}: {value:.4f}")
+
+    print()
+
+    return best_model_name, best_model
+
+# ==========================================================
+# Save Models
+# ==========================================================
+
+def save_models(trained_models, best_model, feature_names):
+
+    print("=" * 60)
+    print("Saving Models")
+    print("=" * 60)
+
+    model_files = {
+        "Logistic Regression": "../models/logistic_model.pkl",
+        "Decision Tree": "../models/decision_tree_model.pkl",
+        "Random Forest": "../models/random_forest_model.pkl",
+        "KNN": "../models/knn_model.pkl"
+    }
+
+    for name, model in trained_models.items():
+
+        joblib.dump(model, model_files[name])
+
+        print(f"{name} saved.")
+
+    joblib.dump(
+        best_model,
+        "../models/best_model.pkl"
+    )
+
+    joblib.dump(
+        feature_names,
+        "../models/phishing_feature_names.pkl"
+    )
+
+    print("\nBest Model Saved Successfully!")
+    print("Feature Names Saved Successfully!\n")
+    
+# ==========================================================
+# Confusion Matrix
+# ==========================================================
+
+def plot_confusion_matrix(best_model, X_test, y_test):
+
+    predictions = best_model.predict(X_test)
+
+    cm = confusion_matrix(
+        y_test,
+        predictions
+    )
+
+    disp = ConfusionMatrixDisplay(
+        confusion_matrix=cm,
+        display_labels=["Legitimate", "Phishing"]
+    )
+
+    disp.plot()
+
+    plt.title("Confusion Matrix")
+
+    plt.savefig(
+        "../graphs/confusion_matrix.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+    print("Confusion Matrix Saved.")
+    
+    # ==========================================================
+# Feature Importance
+# ==========================================================
+
+def plot_feature_importance(best_model, feature_names):
+
+    if not hasattr(best_model, "feature_importances_"):
+
+        print("Feature Importance Not Available.")
+        return
+
+    importance = pd.Series(
+        best_model.feature_importances_,
+        index=feature_names
+    )
+
+    importance = importance.sort_values()
+
+    plt.figure(figsize=(10,8))
+
+    importance.plot(kind="barh")
+
+    plt.title("Feature Importance")
+
+    plt.xlabel("Importance")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        "../graphs/feature_importance.png",
+        dpi=300,
+        bbox_inches="tight"
+    )
+
+    plt.close()
+
+    print("Feature Importance Graph Saved.")
+    
+# ==========================================================
+# Model Comparison
+# ==========================================================
+
+def plot_model_comparison(results):
+
+    accuracy = {
+
+        name: values["Accuracy"]
+
+        for name, values in results.items()
+
+    }
+
+    plt.figure(figsize=(9,5))
+
+    bars = plt.bar(
+        accuracy.keys(),
+        accuracy.values()
+    )
+
+    plt.title("Machine Learning Model Comparison")
+
+    plt.xlabel("Models")
+
+    plt.ylabel("Accuracy")
+
+    plt.ylim(0,1)
+
+    plt.xticks(rotation=15)
+
+    for bar in bars:
+
+        height = bar.get_height()
+
+        plt.text(
+
+            bar.get_x()+bar.get_width()/2,
+
+            height+0.01,
+
+            f"{height*100:.2f}%",
+
+            ha="center"
+
+        )
+
+    plt.tight_layout()
+
+    plt.savefig(
+
+        "../graphs/model_comparison.png",
+
+        dpi=300,
+
+        bbox_inches="tight"
+
+    )
+
+    plt.close()
+
+    print("Model Comparison Graph Saved.")
+    
+# ==========================================================
+# Main
+# ==========================================================
+
+def main():
+
+    df = load_dataset()
+
+    validate_dataset(df)
+
+    X, y, feature_names = split_dataset(df)
+
+    X_train, X_test, y_train, y_test = create_train_test_split(
+        X,
+        y
+    )
+
+    models = create_models()
+
+    results, trained_models = train_models(
+
+        models,
+
+        X_train,
+
+        X_test,
+
+        y_train,
+
+        y_test
+
+    )
+
+    best_model_name, best_model = get_best_model(
+
+        results,
+
+        trained_models
+
+    )
+
+    save_models(
+
+        trained_models,
+
+        best_model,
+
+        feature_names
+
+    )
+
+    plot_confusion_matrix(
+
+        best_model,
+
+        X_test,
+
+        y_test
+
+    )
+
+    plot_feature_importance(
+
+        best_model,
+
+        feature_names
+
+    )
+
+    plot_model_comparison(results)
+
+    print("="*60)
+
+    print("Training Completed Successfully!")
+
+    print("="*60)
+
+    print(f"Best Model : {best_model_name}")
+
+    print("All Graphs Saved Inside graphs/")
+
+    print("All Models Saved Inside models/")
+
+
+if __name__ == "__main__":
+    main()

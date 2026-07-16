@@ -1,41 +1,87 @@
 import re
+import math
+from urllib.parse import urlparse
+
+
+def calculate_entropy(text):
+    """
+    Calculate Shannon entropy of a string.
+    Higher entropy usually means more randomness.
+    """
+    if not text:
+        return 0
+
+    entropy = 0
+
+    for char in set(text):
+        probability = text.count(char) / len(text)
+        entropy -= probability * math.log2(probability)
+
+    return round(entropy, 3)
+
 
 def extract_features(url):
     """
     Extract lexical features from a URL.
-
-    Returns:
-        dict: Dictionary containing extracted URL features.
     """
 
-    # Convert URL to lowercase
-    url = url.lower()
+    url = url.lower().strip()
 
-    # -------------------------
+    parsed = urlparse(url)
+
+    domain = parsed.netloc
+    path = parsed.path
+    query = parsed.query
+
+    # -----------------------------
     # Basic Features
-    # -------------------------
+    # -----------------------------
 
     url_length = len(url)
 
-    https = 1 if url.startswith("https") else 0
+    https = 1 if parsed.scheme == "https" else 0
 
     dots = url.count(".")
 
-    at_symbol = 1 if "@" in url else 0
-
     hyphen = 1 if "-" in url else 0
 
-    # -------------------------
+    at_symbol = 1 if "@" in url else 0
+
+    # -----------------------------
+    # Domain Features
+    # -----------------------------
+
+    domain_length = len(domain)
+
+    domain_parts = domain.split(".")
+
+    subdomain_count = max(len(domain_parts) - 2, 0)
+
+    suspicious_tlds = {
+        "xyz",
+        "top",
+        "click",
+        "gq",
+        "ml",
+        "cf",
+        "tk"
+    }
+
+    tld = domain_parts[-1] if len(domain_parts) > 1 else ""
+
+    suspicious_tld = 1 if tld in suspicious_tlds else 0
+
+    # -----------------------------
     # IP Address Detection
-    # -------------------------
+    # -----------------------------
 
-    ip_pattern = r"\b(?:\d{1,3}\.){3}\d{1,3}\b"
+    ip_pattern = r"^(?:\d{1,3}\.){3}\d{1,3}$"
 
-    ip_address = 1 if re.search(ip_pattern, url) else 0
+    ip_address = 1 if re.match(ip_pattern, domain) else 0
 
-    # -------------------------
+    # -----------------------------
     # Suspicious Keywords
-    # -------------------------
+    # -----------------------------
 
     keywords = [
         "login",
@@ -47,12 +93,6 @@ def extract_features(url):
         "update",
         "confirm",
         "account",
-        "bank",
-        "paypal",
-        "amazon",
-        "google",
-        "microsoft",
-        "office365",
         "password",
         "wallet",
         "payment",
@@ -65,22 +105,33 @@ def extract_features(url):
     ]
 
     keyword_count = sum(
-        1 for keyword in keywords
-        if keyword in url
+        keyword in url
+        for keyword in keywords
     )
 
-    # -------------------------
-    # Additional Lexical Features
-    # -------------------------
+    # -----------------------------
+    # Character Features
+    # -----------------------------
 
-    digits = sum(char.isdigit() for char in url)
+    digits = sum(c.isdigit() for c in url)
 
-    letters = sum(char.isalpha() for char in url)
+    letters = sum(c.isalpha() for c in url)
 
     special_characters = sum(
-        not char.isalnum()
-        for char in url
+        not c.isalnum()
+        for c in url
     )
+
+    digit_ratio = round(digits / url_length, 3) if url_length else 0
+
+    special_character_ratio = round(
+        special_characters / url_length,
+        3
+    ) if url_length else 0
+
+    # -----------------------------
+    # URL Structure
+    # -----------------------------
 
     slashes = url.count("/")
 
@@ -92,21 +143,33 @@ def extract_features(url):
 
     underscores = url.count("_")
 
-    # -------------------------
-    # Return Feature Dictionary
-    # -------------------------
+    # -----------------------------
+    # URL Entropy
+    # -----------------------------
+
+    entropy = calculate_entropy(url)
+
+    # -----------------------------
+    # Return Features
+    # -----------------------------
 
     return {
 
         "url_length": url_length,
 
+        "domain_length": domain_length,
+
         "https": https,
 
         "dots": dots,
 
-        "at_symbol": at_symbol,
+        "subdomain_count": subdomain_count,
+
+        "suspicious_tld": suspicious_tld,
 
         "hyphen": hyphen,
+
+        "at_symbol": at_symbol,
 
         "ip_address": ip_address,
 
@@ -116,7 +179,9 @@ def extract_features(url):
 
         "letters": letters,
 
-        "special_characters": special_characters,
+        "digit_ratio": digit_ratio,
+
+        "special_character_ratio": special_character_ratio,
 
         "slashes": slashes,
 
@@ -126,5 +191,8 @@ def extract_features(url):
 
         "ampersands": ampersands,
 
-        "underscores": underscores
+        "underscores": underscores,
+
+        "entropy": entropy
+
     }
