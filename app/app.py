@@ -7,7 +7,6 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 from predict import predict_from_url
-from feature_extractor import extract_features
 
 # =============================================================
 # Page Configuration
@@ -440,33 +439,6 @@ with st.sidebar:
 
     st.markdown("---")
 
-    st.markdown("### 📋 Quick Test URLs")
-    st.markdown("Click to copy, then paste above:")
-
-    legit_urls = [
-        "https://www.google.com",
-        "https://github.com",
-        "https://www.amazon.com",
-        "https://stackoverflow.com",
-    ]
-
-    phish_urls = [
-        "http://192.168.1.1/login/verify-account.php",
-        "http://secure-paypal-login.xyz/verify",
-        "http://free-gift-winner.tk/claim.php?id=123",
-        "http://amaz0n-secure.ml/password/reset",
-    ]
-
-    st.markdown("**✅ Legitimate:**")
-    for url in legit_urls:
-        st.code(url, language=None)
-
-    st.markdown("**🚨 Suspicious:**")
-    for url in phish_urls:
-        st.code(url, language=None)
-
-    st.markdown("---")
-
     st.markdown("### 🔬 How It Works")
     st.markdown("""
     1. **Extract** 33 features from the URL
@@ -537,7 +509,6 @@ if analyze:
 
             try:
                 result = predict_from_url(url)
-                features = extract_features(url)
             except Exception as e:
                 st.markdown(f"""
                 <div class="glass-card" style="text-align: center; border-color: rgba(248, 113, 113, 0.3);">
@@ -652,84 +623,7 @@ if analyze:
         </div>
         """, unsafe_allow_html=True)
 
-        # ────────────────────────────────────────────
-        # Feature Breakdown (Expandable)
-        # ────────────────────────────────────────────
 
-        with st.expander("🔬 View Extracted Features (33 URL Features)"):
-
-            # Group features for better readability
-            basic_features = {
-                "URL Length": features["url_length"],
-                "HTTPS": "Yes" if features["https"] else "No",
-                "Dots Count": features["dots"],
-                "Many Dots (≥4)": "Yes" if features["many_dots"] else "No",
-                "Parameter Count": features["parameter_count"],
-                "Long URL (>75)": "Yes" if features["long_url"] else "No",
-                "Contains Email": "Yes" if features["contains_email"] else "No",
-                "Starts with Digit": "Yes" if features["starts_with_digit"] else "No",
-            }
-
-            domain_features = {
-                "Domain Length": features["domain_length"],
-                "Long Domain (>30)": "Yes" if features["long_domain"] else "No",
-                "Subdomain Count": features["subdomain_count"],
-                "Suspicious TLD": "Yes" if features["suspicious_tld"] else "No",
-                "TLD Length": features["tld_length"],
-                "Domain Has Digits": "Yes" if features["domain_has_digits"] else "No",
-                "IP Address": "Yes" if features["ip_address"] else "No",
-                "Has Port": "Yes" if features["has_port"] else "No",
-            }
-
-            security_features = {
-                "Hyphen in URL": "Yes" if features["hyphen"] else "No",
-                "At Symbol (@)": "Yes" if features["at_symbol"] else "No",
-                "URL Shortener": "Yes" if features["url_shortener"] else "No",
-                "Double Hyphen (--)": "Yes" if features["double_hyphen"] else "No",
-                "Multiple Special Chars": "Yes" if features["multiple_special"] else "No",
-                "Repeated Chars": "Yes" if features["repeated_chars"] else "No",
-                "Keyword Count": features["keyword_count"],
-                "Suspicious Extension": "Yes" if features["has_suspicious_extension"] else "No",
-                "Brand Name Count": features["brand_count"],
-            }
-
-            stats_features = {
-                "Digit Count": features["digits"],
-                "Special Char Count": features["special_characters"],
-                "Digit Ratio": f"{features['digit_ratio']:.3f}",
-                "Special Char Ratio": f"{features['special_character_ratio']:.3f}",
-                "Slashes": features["slashes"],
-                "Question Marks": features["question_marks"],
-                "Equal Signs": features["equal_signs"],
-                "Ampersands": features["ampersands"],
-                "Underscores": features["underscores"],
-                "Entropy": f"{features['entropy']:.3f}",
-                "Directory Depth": features["directory_depth"],
-            }
-
-            tab1, tab2, tab3, tab4 = st.tabs([
-                "📋 Basic", "🌐 Domain", "🔒 Security", "📊 Statistics"
-            ])
-
-            def render_feature_grid(feat_dict):
-                items_html = ""
-                for name, value in feat_dict.items():
-                    items_html += f"""
-                    <div class="feature-item">
-                        <span class="feature-name">{name}</span>
-                        <span class="feature-value">{value}</span>
-                    </div>
-                    """
-                st.markdown(f'<div class="feature-grid">{items_html}</div>', unsafe_allow_html=True)
-
-            with tab1:
-                render_feature_grid(basic_features)
-            with tab2:
-                render_feature_grid(domain_features)
-            with tab3:
-                render_feature_grid(security_features)
-            with tab4:
-                render_feature_grid(stats_features)
 
 
 # =============================================================
@@ -738,7 +632,7 @@ if analyze:
 
 st.markdown("""
 <div class="footer">
-    <p>Built with ❤️ by <strong>Mohit Sain</strong> • AI Phishing Detection Project</p>
+    <p>Built by <strong>Mohit Sain</strong> • AI Phishing Detection Project</p>
     <p>Powered by Random Forest ML • 33 Lexical URL Features • 100k+ Training URLs</p>
 </div>
 """, unsafe_allow_html=True)
