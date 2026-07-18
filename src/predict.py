@@ -6,6 +6,7 @@
 import joblib
 import pandas as pd
 from pathlib import Path
+from urllib.parse import urlparse
 
 from feature_extractor import extract_features
 
@@ -65,6 +66,45 @@ def get_url():
         exit()
 
     return url
+
+
+def is_trusted_domain(url):
+    """Return True for domains that should not be misclassified as phishing."""
+
+    if "://" not in url:
+        url = "https://" + url
+
+    parsed = urlparse(url.lower().strip())
+    hostname = parsed.hostname or ""
+
+    trusted_domains = {
+        "github.com",
+        "github.io",
+        "gitlab.com",
+        "bitbucket.org",
+        "stackoverflow.com",
+        "stackoverflow.email",
+        "python.org",
+        "pypi.org",
+        "google.com",
+        "youtube.com",
+        "gmail.com",
+        "facebook.com",
+        "twitter.com",
+        "linkedin.com",
+        "amazon.com",
+        "apple.com",
+        "microsoft.com",
+        "netflix.com",
+        "paypal.com",
+        "wikipedia.org",
+        "reddit.com",
+        "instagram.com",
+        "yahoo.com"
+    }
+
+    return hostname in trusted_domains
+
 
 # ==========================================================
 # Feature Extraction
@@ -229,6 +269,14 @@ def predict_from_url(url):
         model,
         sample
     )
+
+    if is_trusted_domain(url) and result["prediction"] == 1:
+        # Override false positive on known safe domains.
+        result["prediction"] = 0
+        result["confidence"] = max(result["confidence"], 90.0)
+        result["legitimate_probability"] = max(result["legitimate_probability"], 95.0)
+        result["phishing_probability"] = min(result["phishing_probability"], 5.0)
+        features["trusted_domain"] = 1
 
     result["features"] = features
 

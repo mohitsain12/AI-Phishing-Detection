@@ -5,6 +5,13 @@ def explain_prediction(feature_dict):
 
     reasons = []
 
+    # --- Trusted Domain Whitelist ---
+    if feature_dict.get("trusted_domain", 0) == 1:
+        reasons.append(
+            "This URL belongs to a trusted domain and has been treated as safe despite weak suspicious signals."
+        )
+        return reasons
+
     # --- URL Length ---
     if feature_dict.get("url_length", 0) > 75:
         reasons.append("The URL is unusually long (>75 characters), often used to hide phishing intent")
