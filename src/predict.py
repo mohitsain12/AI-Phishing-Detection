@@ -5,8 +5,12 @@
 
 import joblib
 import pandas as pd
+from pathlib import Path
 
 from feature_extractor import extract_features
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+MODEL_DIR = PROJECT_ROOT / "models"
 
 # ==========================================================
 # Load Trained Model
@@ -21,11 +25,11 @@ def load_model():
     try:
 
         model = joblib.load(
-            "../models/random_forest_model.pkl"
+            MODEL_DIR / "phishing_detector_tuned.pkl"
         )
 
         feature_names = joblib.load(
-            "../models/phishing_feature_names.pkl"
+            MODEL_DIR / "phishing_feature_names.pkl"
         )
 
         print("Model Loaded Successfully!")
@@ -79,7 +83,7 @@ def prepare_features(url, feature_names):
 
     print("Feature Extraction Completed!\n")
 
-    return sample
+    return sample, features
 
 # ==========================================================
 # Predict URL
@@ -90,6 +94,9 @@ def predict_url(model, sample):
     print("=" * 60)
     print("Analyzing URL")
     print("=" * 60)
+
+    if not isinstance(sample, pd.DataFrame):
+        raise TypeError("Prediction sample must be a pandas DataFrame.")
 
     # Predict class
     prediction = model.predict(sample)[0]
@@ -181,7 +188,7 @@ def main():
 
     url = get_url()
 
-    sample = prepare_features(
+    sample, features = prepare_features(
 
         url,
 
@@ -208,12 +215,12 @@ def main():
 def predict_from_url(url):
     """
     Streamlit-friendly prediction function.
-    Takes a URL and returns prediction results.
+    Takes a URL and returns prediction results with features.
     """
 
     model, feature_names = load_model()
 
-    sample = prepare_features(
+    sample, features = prepare_features(
         url,
         feature_names
     )
@@ -222,6 +229,8 @@ def predict_from_url(url):
         model,
         sample
     )
+
+    result["features"] = features
 
     return result
 

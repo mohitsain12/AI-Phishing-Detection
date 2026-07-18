@@ -26,8 +26,12 @@ def extract_features(url):
 
     url = url.lower().strip()
 
+    if "://" not in url:
+        url = "https://" + url
+
     parsed = urlparse(url)
 
+    hostname = parsed.hostname or ""
     domain = parsed.netloc
     path = parsed.path
     query = parsed.query
@@ -48,7 +52,12 @@ def extract_features(url):
     
     long_url = int(url_length > 75)
     
-    # www_count = url.count("www")
+    domain_labels = hostname.split(".") if hostname else []
+
+    www_count = domain_labels.count("www")
+
+    if domain_labels[:1] == ["www"]:
+        www_count -= 1
     
     contains_email = int(
         bool(
@@ -90,9 +99,16 @@ def extract_features(url):
         )
     )
     
+    repetition_url = re.sub(
+        r"(?<=://)www\.",
+        "",
+        url,
+        count=1
+    )
+
     repeated_chars = int(
         bool(
-            re.search(r"([a-zA-Z])\1{2,}", url)
+            re.search(r"([a-zA-Z])\1{2,}", repetition_url)
         )
     )
     
@@ -100,7 +116,7 @@ def extract_features(url):
     # Domain Features
     # -----------------------------
 
-    domain = parsed.netloc.lower()
+    domain = hostname.lower()
 
     if domain.startswith("www."):
         domain = domain[4:]
@@ -255,7 +271,7 @@ def extract_features(url):
         "many_dots": many_dots,
         "parameter_count": parameter_count,
         "long_url": long_url,
-        # "www_count": www_count,
+        "www_count": www_count,
         "contains_email": contains_email,
         "starts_with_digit": starts_with_digit,
         "multiple_special": multiple_special,

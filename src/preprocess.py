@@ -1,4 +1,5 @@
 import pandas as pd
+import re
 from feature_extractor import extract_features
 
 # -----------------------------------------------------
@@ -66,6 +67,55 @@ def create_raw_dataset():
 # Create features.csv
 # -----------------------------------------------------
 
+def add_www_variants(df):
+
+    variant_rows = []
+
+    for _, row in df.iterrows():
+
+        url = str(row["URL"])
+
+        variant_url = re.sub(
+            r"://www\.",
+            "://",
+            url,
+            count=1,
+            flags=re.IGNORECASE
+        )
+
+        if variant_url != url:
+
+            variant_rows.append(
+                {
+                    "URL": variant_url,
+                    "label": row["label"]
+                }
+            )
+
+    if not variant_rows:
+
+        return df
+
+    augmented_df = pd.concat(
+        [
+            df,
+            pd.DataFrame(variant_rows)
+        ],
+        ignore_index=True
+    )
+
+    augmented_df.drop_duplicates(
+        subset=["URL"],
+        inplace=True
+    )
+
+    augmented_df.reset_index(
+        drop=True,
+        inplace=True
+    )
+
+    return augmented_df
+
 def create_feature_dataset():
 
     print("=" * 60)
@@ -76,6 +126,10 @@ def create_feature_dataset():
     df = pd.read_csv("../data/raw_urls.csv")
 
     print(f"Raw Dataset Loaded : {len(df)} URLs")
+
+    df = add_www_variants(df)
+
+    print(f"Dataset After WWW Augmentation : {len(df)} URLs")
 
     feature_rows = []
     skipped = 0
