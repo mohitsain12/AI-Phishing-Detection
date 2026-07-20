@@ -7,8 +7,13 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
 from predict import predict_from_url
-from explainer import explain_prediction
 
+from history import (
+    save_prediction,
+    load_history,
+    clear_history
+)
+from explainer import explain_prediction
 
 
 # =============================================================
@@ -526,6 +531,14 @@ if analyze:
         # --- Determine risk ---
         is_phishing = result["prediction"] == 1
         confidence = result["confidence"]
+        
+        prediction = "Phishing" if is_phishing else "Legitimate"
+
+        save_prediction(
+            url=url,
+            prediction=prediction,
+            confidence=confidence
+            )
 
         if is_phishing:
             if confidence >= 95:
@@ -797,6 +810,59 @@ if analyze:
                 }
             )
 
+# =============================================================
+# Prediction History
+# =============================================================
+
+history_df = load_history()
+st.markdown("---")
+st.subheader("📜 Prediction History")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric("Total Predictions", len(history_df))
+
+with col2:
+    st.metric(
+        "Phishing",
+        len(history_df[history_df["Prediction"] == "Phishing"])
+    )
+
+with col3:
+    st.metric(
+        "Legitimate",
+        len(history_df[history_df["Prediction"] == "Legitimate"])
+    )
+    
+if st.button("🗑️ Clear History"):
+
+    clear_history()
+
+    st.success("Prediction history cleared successfully.")
+
+    st.rerun()
+
+if not history_df.empty:
+
+    csv = history_df.to_csv(index=False)
+
+    st.download_button(
+        label="📥 Download History",
+        data=csv,
+        file_name="prediction_history.csv",
+        mime="text/csv"
+    )
+    
+if history_df.empty:
+    st.info("No prediction history available.")
+else:
+    st.dataframe(
+        history_df,
+        width="stretch",
+        hide_index=True
+    )
+    
 
 
 # =============================================================

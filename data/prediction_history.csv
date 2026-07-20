@@ -1,0 +1,4 @@
+Timestamp,URL,Prediction,Confidence
+2026-07-20 18:30:52,https://google.com,Legitimate,95.11
+2026-07-20 18:31:02,https://facebook.com,Legitimate,95.57
+2026-07-20 18:31:23,https://paypal-login.xyz,Phishing,66.76
