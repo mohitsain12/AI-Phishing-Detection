@@ -856,6 +856,151 @@ with col4:
     
 
     
+# =============================================================
+# Prediction history table
+# =============================================================
+
+
+if history_df.empty:
+    st.info("No prediction history available.")
+else:
+    with st.expander("📋 Prediction History", expanded=False):
+        st.dataframe(
+            history_df,
+            width="stretch",
+            hide_index=True
+        )
+
+
+# =============================================================
+# PIE chart of prediction
+# =============================================================
+
+
+if total_predictions > 0:
+    # Pie Chart
+    sizes = [legitimate_count, phishing_count]
+
+    labels = ["Legitimate", "Phishing"]
+
+    with st.expander("🥧 Prediction Distribution", expanded=False):
+        fig, ax = plt.subplots()
+
+        ax.pie(
+            sizes,
+            labels=labels,
+            autopct="%1.1f%%",
+            startangle=90
+        )
+
+        ax.axis("equal")
+
+        ax.set_title("Prediction Distribution")
+
+        st.pyplot(fig)
+else:
+    st.info("No prediction data available yet.")
+    
+# =============================================================
+# DAILy predection line chart
+# =============================================================
+
+
+if not history_df.empty:
+    # Convert Timestamp to datetime
+    history_df["Timestamp"] = pd.to_datetime(history_df["Timestamp"])
+    # Extract Date
+    history_df["Date"] = history_df["Timestamp"].dt.date
+    # Count predictions per day
+    daily_predictions = history_df.groupby("Date").size()
+    # Create Line Chart
+    with st.expander("📈 Daily Prediction Trend", expanded=False):
+        fig, ax = plt.subplots(figsize=(8,4))
+    
+        ax.plot(
+            daily_predictions.index,
+            daily_predictions.values,
+            marker="o"
+        )
+        ax.set_title("Daily Prediction Trend")
+        ax.set_xlabel("Date")
+        ax.set_ylabel("Number of Predictions")
+        
+        plt.xticks(rotation=45)
+        
+        st.pyplot(fig)
+    
+
+else:
+    st.info("No prediction history available.")
+    
+    
+# =============================================================
+# Confidence Distribution Histogram
+# =============================================================
+
+if not history_df.empty:
+    # Create histogram
+    with st.expander("📊 Confidence Distribution", expanded=False):
+
+        confidence_scores = history_df["Confidence"]
+
+        fig, ax = plt.subplots(figsize=(8,4))
+
+        ax.hist(confidence_scores, bins=10)
+
+        ax.set_title("Confidence Distribution")
+        ax.set_xlabel("Confidence (%)")
+        ax.set_ylabel("Number of Predictions")
+
+        st.pyplot(fig)
+else:
+    st.info("No confidence data available.")
+
+
+# =============================================================
+# Recent activity  
+# =============================================================
+    
+
+history_df = history_df.sort_values(
+    by="Timestamp",
+    ascending=False
+)
+
+recent_predictions = history_df.head(5)
+
+with st.expander(
+    "📅 Recent Activity",
+    expanded=False
+):
+
+    for _, row in recent_predictions.iterrows():
+
+        if row["Prediction"] == "Phishing":
+            st.error("🔴 Phishing URL")
+        else:
+            st.success("🟢 Legitimate URL")
+
+        st.write(f"**🌐 URL:** {row['URL']}")
+
+        st.write(
+            f"**📊 Confidence:** {row['Confidence']:.2f}%"
+        )
+
+        st.write(
+            f"**🕒 Time:** {row['Timestamp']}"
+        )
+
+        st.divider()
+        
+        
+    
+# =============================================================
+# Clear history button   
+# =============================================================
+
+
 if st.button("🗑️ Clear History"):
 
     clear_history()
@@ -863,6 +1008,12 @@ if st.button("🗑️ Clear History"):
     st.success("Prediction history cleared successfully.")
 
     st.rerun()
+
+
+# =============================================================
+# Download history button
+# =============================================================
+
 
 if not history_df.empty:
 
@@ -874,66 +1025,6 @@ if not history_df.empty:
         file_name="prediction_history.csv",
         mime="text/csv"
     )
-    
-if history_df.empty:
-    st.info("No prediction history available.")
-else:
-    st.dataframe(
-        history_df,
-        width="stretch",
-        hide_index=True
-    )
-
-
-
-if total_predictions > 0:
-    # Pie Chart
-    sizes = [legitimate_count, phishing_count]
-
-    labels = ["Legitimate", "Phishing"]
-
-    fig, ax = plt.subplots()
-
-    ax.pie(
-        sizes,
-        labels=labels,
-        autopct="%1.1f%%",
-        startangle=90
-    )
-
-    ax.axis("equal")
-
-    ax.set_title("Prediction Distribution")
-
-    st.pyplot(fig)
-else:
-    st.info("No prediction data available yet.")
-    
-# Convert Timestamp to datetime
-history_df["Timestamp"] = pd.to_datetime(history_df["Timestamp"])
-
-# Extract Date
-history_df["Date"] = history_df["Timestamp"].dt.date
-
-# Count predictions per day
-daily_predictions = history_df.groupby("Date").size()
-
-# Create Line Chart
-fig, ax = plt.subplots(figsize=(8,4))
-
-ax.plot(
-    daily_predictions.index,
-    daily_predictions.values,
-    marker="o"
-)
-
-ax.set_title("Daily Prediction Trend")
-ax.set_xlabel("Date")
-ax.set_ylabel("Number of Predictions")
-
-plt.xticks(rotation=45)
-
-st.pyplot(fig)
 
 # =============================================================
 # Footer
