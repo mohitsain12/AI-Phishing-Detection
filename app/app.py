@@ -2,7 +2,7 @@ import streamlit as st
 import sys
 import os
 import pandas as pd
-
+import matplotlib.pyplot as plt
 # Add src folder to Python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
@@ -818,22 +818,43 @@ history_df = load_history()
 st.markdown("---")
 st.subheader("📜 Prediction History")
 
-col1, col2, col3 = st.columns(3)
+# Display Metrics
+col1, col2, col3, col4 = st.columns(4)
+
+total_predictions = len(history_df)
+
+phishing_count = len(
+    history_df[history_df["Prediction"] == "Phishing"]
+)
+
+legitimate_count = len(
+    history_df[history_df["Prediction"] == "Legitimate"]
+)
+
+average_confidence = history_df["Confidence"].mean()
 
 with col1:
-    st.metric("Total Predictions", len(history_df))
+    st.metric("Total Predictions", total_predictions)
 
 with col2:
     st.metric(
         "Phishing",
-        len(history_df[history_df["Prediction"] == "Phishing"])
+        phishing_count
     )
 
 with col3:
     st.metric(
         "Legitimate",
-        len(history_df[history_df["Prediction"] == "Legitimate"])
+        legitimate_count
     )
+
+with col4:
+    st.metric(
+        "Average Confidence",
+        f"{average_confidence:.2f}%"
+    )
+    
+
     
 if st.button("🗑️ Clear History"):
 
@@ -862,8 +883,57 @@ else:
         width="stretch",
         hide_index=True
     )
-    
 
+
+
+if total_predictions > 0:
+    # Pie Chart
+    sizes = [legitimate_count, phishing_count]
+
+    labels = ["Legitimate", "Phishing"]
+
+    fig, ax = plt.subplots()
+
+    ax.pie(
+        sizes,
+        labels=labels,
+        autopct="%1.1f%%",
+        startangle=90
+    )
+
+    ax.axis("equal")
+
+    ax.set_title("Prediction Distribution")
+
+    st.pyplot(fig)
+else:
+    st.info("No prediction data available yet.")
+    
+# Convert Timestamp to datetime
+history_df["Timestamp"] = pd.to_datetime(history_df["Timestamp"])
+
+# Extract Date
+history_df["Date"] = history_df["Timestamp"].dt.date
+
+# Count predictions per day
+daily_predictions = history_df.groupby("Date").size()
+
+# Create Line Chart
+fig, ax = plt.subplots(figsize=(8,4))
+
+ax.plot(
+    daily_predictions.index,
+    daily_predictions.values,
+    marker="o"
+)
+
+ax.set_title("Daily Prediction Trend")
+ax.set_xlabel("Date")
+ax.set_ylabel("Number of Predictions")
+
+plt.xticks(rotation=45)
+
+st.pyplot(fig)
 
 # =============================================================
 # Footer

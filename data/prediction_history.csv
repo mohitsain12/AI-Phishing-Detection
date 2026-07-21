@@ -2,3 +2,8 @@ Timestamp,URL,Prediction,Confidence
 2026-07-20 18:30:52,https://google.com,Legitimate,95.11
 2026-07-20 18:31:02,https://facebook.com,Legitimate,95.57
 2026-07-20 18:31:23,https://paypal-login.xyz,Phishing,66.76
+2026-07-21 16:06:18,https://www.skillindiadigital.gov.in,Legitimate,94.64
+2026-07-21 16:06:38,https://chatgpt.com,Legitimate,95.76
+2026-07-21 16:06:53,https://grok.com/,Phishing,82.13
+2026-07-21 16:07:00,https://grok.com,Legitimate,95.85
+2026-07-21 16:37:52,leetcode.com,Legitimate,96.25
