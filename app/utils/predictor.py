@@ -7,7 +7,7 @@ for each incoming URL prediction attempt.
 
 from .logger import logger
 
-from predict import predict_from_url
+from predict import predict_from_url, PredictionError
 
 
 def predict_url(url):

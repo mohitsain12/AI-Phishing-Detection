@@ -1,256 +1,103 @@
 """Train model module for AI Phishing Detection.
 
-Provides utilities and application logic for the project.
+Trains Logistic Regression, Decision Tree, Random Forest, and KNN classifiers,
+evaluates performance metrics, and saves models and graphs.
 """
 
-# ==========================================================
-# AI PHISHING DETECTION
-# Module 3 : Model Training
-# ==========================================================
-
-import os
+import sys
+from pathlib import Path
 import joblib
-import pandas as pd
 import matplotlib
-matplotlib.use('Agg')
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-
-from sklearn.model_selection import train_test_split
 
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.neighbors import KNeighborsClassifier
-
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
     recall_score,
     f1_score,
     roc_auc_score,
-    classification_report,
-    confusion_matrix,
-    ConfusionMatrixDisplay
+    classification_report
 )
 
-# ==========================================================
-# Create Required Folders
-# ==========================================================
+# Ensure root directory is accessible in sys.path
+root_directory = Path(__file__).resolve().parent.parent
+if str(root_directory) not in sys.path:
+    sys.path.insert(0, str(root_directory))
 
-os.makedirs("../models", exist_ok=True)
-os.makedirs("../graphs", exist_ok=True)
+from config import (
+    LOGISTIC_MODEL_PATH,
+    DECISION_TREE_MODEL_PATH,
+    RANDOM_FOREST_MODEL_PATH,
+    KNN_MODEL_PATH,
+    BEST_MODEL_PATH,
+    FEATURE_NAMES_PATH,
+    CONFUSION_MATRIX_GRAPH,
+    FEATURE_IMPORTANCE_GRAPH,
+    MODEL_COMPARISON_GRAPH,
+    RANDOM_STATE
+)
+from src.model_utils import (
+    load_feature_dataset,
+    validate_feature_dataset,
+    prepare_dataset_split,
+    split_train_test,
+    plot_and_save_confusion_matrix,
+    plot_and_save_feature_importance
+)
 
-# ==========================================================
-# Load Dataset
-# ==========================================================
-
-def load_dataset():
-
-    """Load dataset.
-    
-    Returns
-    -------
-    TYPE
-        Description of return value.
-    """
-    print("=" * 60)
-    print("Loading Dataset")
-    print("=" * 60)
-
-    try:
-        df = pd.read_csv("../data/features.csv")
-
-    except FileNotFoundError:
-        print("Error : features.csv not found.")
-        exit()
-
-    print(f"Dataset Loaded Successfully")
-    print(f"Rows    : {df.shape[0]}")
-    print(f"Columns : {df.shape[1]}")
-    print()
-
-    return df
-
-# ==========================================================
-# Validate Dataset
-# ==========================================================
-
-def validate_dataset(df):
-
-    """Validate dataset.
-    
-    Parameters
-    ----------
-    df : TYPE
-        Description of df.
-    
-    Raises
-    ------
-    Exception
-        If an error occurs during execution.
-    """
-    print("=" * 60)
-    print("Dataset Validation")
-    print("=" * 60)
-
-    if "label" not in df.columns:
-        raise ValueError("Dataset must contain 'label' column.")
-
-    print("No Missing Values")
-
-    print(df.isnull().sum())
-
-    print()
-
-    print("Dataset Information")
-
-    print(df.info())
-
-    print()
-
-    print("Class Distribution")
-
-    print(df["label"].value_counts())
-
-    print()
-    
-# ==========================================================
-# Split Dataset
-# ==========================================================
-
-def split_dataset(df):
-
-    """Split dataset.
-    
-    Parameters
-    ----------
-    df : TYPE
-        Description of df.
-    
-    Returns
-    -------
-    TYPE
-        Description of return value.
-    """
-    X = df.drop(columns=["label"])
-
-    y = df["label"]
-
-    feature_names = X.columns.tolist()
-
-    return X, y, feature_names
-
-# ==========================================================
-# Train Test Split
-# ==========================================================
-
-def create_train_test_split(X, y):
-
-    """Create train test split.
-    
-    Parameters
-    ----------
-    X : TYPE
-        Description of X.
-    y : TYPE
-        Description of y.
-    
-    Returns
-    -------
-    TYPE
-        Description of return value.
-    """
-    X_train, X_test, y_train, y_test = train_test_split(
-
-        X,
-
-        y,
-
-        test_size=0.20,
-
-        random_state=42,
-
-        stratify=y
-
-    )
-
-    print("=" * 60)
-
-    print("Train Test Split")
-
-    print("=" * 60)
-
-    print(f"Training Samples : {len(X_train)}")
-
-    print(f"Testing Samples  : {len(X_test)}")
-
-    print()
-
-    return X_train, X_test, y_train, y_test
-
-# ==========================================================
-# Machine Learning Models
-# ==========================================================
 
 def create_models():
+    """Instantiate standard Machine Learning classifiers.
 
-    """Create models.
-    
     Returns
     -------
-    TYPE
-        Description of return value.
+    dict
+        Dictionary mapping model names to model instances.
     """
-    models = {
-
+    return {
         "Logistic Regression": LogisticRegression(
             max_iter=1000,
-            random_state=42
+            random_state=RANDOM_STATE
         ),
-
         "Decision Tree": DecisionTreeClassifier(
-            random_state=42
+            random_state=RANDOM_STATE
         ),
-
         "Random Forest": RandomForestClassifier(
             n_estimators=200,
-            random_state=42,
+            random_state=RANDOM_STATE,
             n_jobs=-1
         ),
-
         "KNN": KNeighborsClassifier(
             n_neighbors=5
         )
-
     }
 
-    return models
 
-# ==========================================================
-# Train & Evaluate Models
-# ==========================================================
+def train_models(models_dict, X_train, X_test, y_train, y_test):
+    """Train each classifier and calculate evaluation metrics.
 
-def train_models(models, X_train, X_test, y_train, y_test):
-
-    """Train models.
-    
     Parameters
     ----------
-    models : TYPE
-        Description of models.
-    X_train : TYPE
-        Description of X_train.
-    X_test : TYPE
-        Description of X_test.
-    y_train : TYPE
-        Description of y_train.
-    y_test : TYPE
-        Description of y_test.
-    
+    models_dict : dict
+        Dictionary of model estimators.
+    X_train : pd.DataFrame
+        Training features.
+    X_test : pd.DataFrame
+        Testing features.
+    y_train : pd.Series
+        Training labels.
+    y_test : pd.Series
+        Testing labels.
+
     Returns
     -------
-    TYPE
-        Description of return value.
+    tuple
+        (results_dict, trained_models_dict)
     """
     print("=" * 60)
     print("Training Machine Learning Models")
@@ -259,467 +106,184 @@ def train_models(models, X_train, X_test, y_train, y_test):
     results = {}
     trained_models = {}
 
-    for name, model in models.items():
+    for model_name, model_instance in models_dict.items():
+        print(f"\nTraining {model_name}...")
+        model_instance.fit(X_train, y_train)
+        predictions = model_instance.predict(X_test)
 
-        print(f"\nTraining {name}...")
-
-        # --------------------------
-        # Train Model
-        # --------------------------
-
-        model.fit(X_train, y_train)
-
-        # --------------------------
-        # Predictions
-        # --------------------------
-
-        predictions = model.predict(X_test)
-
-        # Probability Prediction
-        # (Not all models support it)
-        # --------------------------
-
-        if hasattr(model, "predict_proba"):
-
-            probabilities = model.predict_proba(X_test)[:, 1]
-
-            roc_auc = roc_auc_score(
-                y_test,
-                probabilities
-            )
-
-        else:
-
-            roc_auc = None
-
-        # --------------------------
-        # Evaluation Metrics
-        # --------------------------
-
-        accuracy = accuracy_score(
-            y_test,
-            predictions
+        probabilities = (
+            model_instance.predict_proba(X_test)[:, 1]
+            if hasattr(model_instance, "predict_proba")
+            else None
+        )
+        roc_auc = (
+            roc_auc_score(y_test, probabilities)
+            if probabilities is not None
+            else None
         )
 
-        precision = precision_score(
-            y_test,
-            predictions
-        )
+        acc = accuracy_score(y_test, predictions)
+        prec = precision_score(y_test, predictions)
+        rec = recall_score(y_test, predictions)
+        f1 = f1_score(y_test, predictions)
 
-        recall = recall_score(
-            y_test,
-            predictions
-        )
-
-        f1 = f1_score(
-            y_test,
-            predictions
-        )
-
-        # --------------------------
-        # Store Results
-        # --------------------------
-
-        results[name] = {
-
-            "Accuracy": accuracy,
-
-            "Precision": precision,
-
-            "Recall": recall,
-
+        results[model_name] = {
+            "Accuracy": acc,
+            "Precision": prec,
+            "Recall": rec,
             "F1 Score": f1,
-
             "ROC AUC": roc_auc
-
         }
-
-        trained_models[name] = model
-
-        # --------------------------
-        # Display Results
-        # --------------------------
+        trained_models[model_name] = model_instance
 
         print("-" * 40)
-
-        print(f"Accuracy  : {accuracy:.4f}")
-
-        print(f"Precision : {precision:.4f}")
-
-        print(f"Recall    : {recall:.4f}")
-
+        print(f"Accuracy  : {acc:.4f}")
+        print(f"Precision : {prec:.4f}")
+        print(f"Recall    : {rec:.4f}")
         print(f"F1 Score  : {f1:.4f}")
-
-        if roc_auc is not None:
-            print(f"ROC AUC   : {roc_auc:.4f}")
-
-        else:
-            print("ROC AUC   : Not Available")
-
+        print(f"ROC AUC   : {roc_auc:.4f}" if roc_auc is not None else "ROC AUC   : N/A")
         print("-" * 40)
-
         print("\nClassification Report\n")
-
-        print(
-
-            classification_report(
-
-                y_test,
-
-                predictions
-
-            )
-
-        )
+        print(classification_report(y_test, predictions))
 
     return results, trained_models
 
-# ==========================================================
-# Best Model
-# ==========================================================
 
-def get_best_model(results, trained_models):
+def get_best_model(results_dict, trained_models_dict):
+    """Determine best performing model based on test accuracy.
 
-    """Get best model.
-    
     Parameters
     ----------
-    results : TYPE
-        Description of results.
-    trained_models : TYPE
-        Description of trained_models.
-    
+    results_dict : dict
+        Metrics results dictionary.
+    trained_models_dict : dict
+        Trained model instances dictionary.
+
     Returns
     -------
-    TYPE
-        Description of return value.
+    tuple
+        (best_model_name, best_model_instance)
     """
     best_model_name = max(
-
-        results,
-
-        key=lambda x: results[x]["Accuracy"]
-
+        results_dict,
+        key=lambda key_name: results_dict[key_name]["Accuracy"]
     )
-
-    best_model = trained_models[best_model_name]
-
-    print("=" * 60)
-
-    print("Best Model")
+    best_model = trained_models_dict[best_model_name]
 
     print("=" * 60)
+    print("Best Model Selected")
+    print("=" * 60)
+    print(f"Name: {best_model_name}\n")
 
-    print(best_model_name)
-
-    print()
-
-    for metric, value in results[best_model_name].items():
-
-        if value is not None:
-
-            print(f"{metric:<12}: {value:.4f}")
-
+    for metric_name, metric_value in results_dict[best_model_name].items():
+        if metric_value is not None:
+            print(f"{metric_name:<12}: {metric_value:.4f}")
     print()
 
     return best_model_name, best_model
 
-# ==========================================================
-# Save Models
-# ==========================================================
 
-def save_models(trained_models, best_model, feature_names):
+def save_trained_models(trained_models_dict, best_model_instance, feature_names):
+    """Serialize trained models and feature names to disk.
 
-    """Save models.
-    
     Parameters
     ----------
-    trained_models : TYPE
-        Description of trained_models.
-    best_model : TYPE
-        Description of best_model.
-    feature_names : TYPE
-        Description of feature_names.
+    trained_models_dict : dict
+        Dictionary of all trained models.
+    best_model_instance : object
+        Best performing model instance.
+    feature_names : list
+        List of feature names.
     """
     print("=" * 60)
     print("Saving Models")
     print("=" * 60)
 
-    model_files = {
-        "Logistic Regression": "../models/logistic_model.pkl",
-        "Decision Tree": "../models/decision_tree_model.pkl",
-        "Random Forest": "../models/random_forest_model.pkl",
-        "KNN": "../models/knn_model.pkl"
+    file_mapping = {
+        "Logistic Regression": LOGISTIC_MODEL_PATH,
+        "Decision Tree": DECISION_TREE_MODEL_PATH,
+        "Random Forest": RANDOM_FOREST_MODEL_PATH,
+        "KNN": KNN_MODEL_PATH
     }
 
-    for name, model in trained_models.items():
+    for name, model_instance in trained_models_dict.items():
+        target_path = file_mapping[name]
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        joblib.dump(model_instance, target_path)
+        print(f"{name} saved to {target_path}")
 
-        joblib.dump(model, model_files[name])
-
-        print(f"{name} saved.")
-
-    joblib.dump(
-        best_model,
-        "../models/best_model.pkl"
-    )
-
-    joblib.dump(
-        feature_names,
-        "../models/phishing_feature_names.pkl"
-    )
+    BEST_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(best_model_instance, BEST_MODEL_PATH)
+    joblib.dump(feature_names, FEATURE_NAMES_PATH)
 
     print("\nBest Model Saved Successfully!")
-    print("Feature Names Saved Successfully!\n")
-    
-# ==========================================================
-# Confusion Matrix
-# ==========================================================
+    print(f"Feature Names Saved to {FEATURE_NAMES_PATH}\n")
 
-def plot_confusion_matrix(best_model, X_test, y_test):
 
-    """Plot confusion matrix.
-    
+def plot_model_comparison(results_dict):
+    """Plot and save accuracy comparison bar chart across models.
+
     Parameters
     ----------
-    best_model : TYPE
-        Description of best_model.
-    X_test : TYPE
-        Description of X_test.
-    y_test : TYPE
-        Description of y_test.
+    results_dict : dict
+        Model metrics dictionary.
     """
-    predictions = best_model.predict(X_test)
-
-    cm = confusion_matrix(
-        y_test,
-        predictions
-    )
-
-    disp = ConfusionMatrixDisplay(
-        confusion_matrix=cm,
-        display_labels=["Legitimate", "Phishing"]
-    )
-
-    disp.plot()
-
-    plt.title("Confusion Matrix")
-
-    plt.savefig(
-        "../graphs/confusion_matrix.png",
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.close()
-
-    print("Confusion Matrix Saved.")
-
-# ==========================================================
-# Feature Importance
-# ==========================================================
-
-def plot_feature_importance(best_model, feature_names):
-
-    """Plot feature importance.
-    
-    Parameters
-    ----------
-    best_model : TYPE
-        Description of best_model.
-    feature_names : TYPE
-        Description of feature_names.
-    
-    Returns
-    -------
-    TYPE
-        Description of return value.
-    """
-    if not hasattr(best_model, "feature_importances_"):
-
-        print("Feature Importance Not Available.")
-        return
-
-    importance = pd.Series(
-        best_model.feature_importances_,
-        index=feature_names
-    )
-
-    importance = importance.sort_values()
-
-    plt.figure(figsize=(10,8))
-
-    importance.plot(kind="barh")
-
-    plt.title("Feature Importance")
-
-    plt.xlabel("Importance")
-
-    plt.tight_layout()
-
-    plt.savefig(
-        "../graphs/feature_importance.png",
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.close()
-
-    print("Feature Importance Graph Saved.")
-    
-# ==========================================================
-# Model Comparison
-# ==========================================================
-
-def plot_model_comparison(results):
-
-    """Plot model comparison.
-    
-    Parameters
-    ----------
-    results : TYPE
-        Description of results.
-    """
-    accuracy = {
-
-        name: values["Accuracy"]
-
-        for name, values in results.items()
-
+    accuracy_data = {
+        name: metrics["Accuracy"] for name, metrics in results_dict.items()
     }
 
-    plt.figure(figsize=(9,5))
-
-    bars = plt.bar(
-        accuracy.keys(),
-        accuracy.values()
-    )
-
+    plt.figure(figsize=(9, 5))
+    bars = plt.bar(accuracy_data.keys(), accuracy_data.values())
     plt.title("Machine Learning Model Comparison")
-
     plt.xlabel("Models")
-
     plt.ylabel("Accuracy")
-
-    plt.ylim(0,1)
-
+    plt.ylim(0, 1)
     plt.xticks(rotation=15)
 
     for bar in bars:
-
         height = bar.get_height()
-
         plt.text(
-
-            bar.get_x()+bar.get_width()/2,
-
-            height+0.01,
-
-            f"{height*100:.2f}%",
-
+            bar.get_x() + bar.get_width() / 2,
+            height + 0.01,
+            f"{height * 100:.2f}%",
             ha="center"
-
         )
 
     plt.tight_layout()
-
-    plt.savefig(
-
-        "../graphs/model_comparison.png",
-
-        dpi=300,
-
-        bbox_inches="tight"
-
-    )
-
+    MODEL_COMPARISON_GRAPH.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(MODEL_COMPARISON_GRAPH, dpi=300, bbox_inches="tight")
     plt.close()
+    print(f"Model Comparison Graph saved to {MODEL_COMPARISON_GRAPH}")
 
-    print("Model Comparison Graph Saved.")
-    
-# ==========================================================
-# Main
-# ==========================================================
 
 def main():
+    """Run model training and evaluation workflow."""
+    feature_df = load_feature_dataset()
+    validate_feature_dataset(feature_df)
 
-    """Main.
-    """
-    df = load_dataset()
+    X, y, feature_names = prepare_dataset_split(feature_df)
+    X_train, X_test, y_train, y_test = split_train_test(X, y)
 
-    validate_dataset(df)
-
-    X, y, feature_names = split_dataset(df)
-
-    X_train, X_test, y_train, y_test = create_train_test_split(
-        X,
-        y
+    models_dict = create_models()
+    results_dict, trained_models = train_models(
+        models_dict, X_train, X_test, y_train, y_test
     )
 
-    models = create_models()
+    best_name, best_model = get_best_model(results_dict, trained_models)
+    save_trained_models(trained_models, best_model, feature_names)
 
-    results, trained_models = train_models(
-
-        models,
-
-        X_train,
-
-        X_test,
-
-        y_train,
-
-        y_test
-
+    plot_and_save_confusion_matrix(
+        best_model, X_test, y_test, CONFUSION_MATRIX_GRAPH, "Confusion Matrix"
     )
-
-    best_model_name, best_model = get_best_model(
-
-        results,
-
-        trained_models
-
+    plot_and_save_feature_importance(
+        best_model, feature_names, FEATURE_IMPORTANCE_GRAPH, "Feature Importance"
     )
+    plot_model_comparison(results_dict)
 
-    save_models(
-
-        trained_models,
-
-        best_model,
-
-        feature_names
-
-    )
-
-    plot_confusion_matrix(
-
-        best_model,
-
-        X_test,
-
-        y_test
-
-    )
-
-    plot_feature_importance(
-
-        best_model,
-
-        feature_names
-
-    )
-
-    plot_model_comparison(results)
-
-    print("="*60)
-
+    print("=" * 60)
     print("Training Completed Successfully!")
-
-    print("="*60)
-
-    print(f"Best Model : {best_model_name}")
-
-    print("All Graphs Saved Inside graphs/")
-
-    print("All Models Saved Inside models/")
+    print("=" * 60)
+    print(f"Best Model : {best_name}")
 
 
 if __name__ == "__main__":

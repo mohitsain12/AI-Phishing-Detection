@@ -1,671 +1,226 @@
 """Tune model module for AI Phishing Detection.
 
-Provides utilities and application logic for the project.
+Performs hyperparameter tuning for Random Forest Classifier using GridSearchCV,
+evaluates tuned model metrics, and saves tuned artifacts.
 """
 
-# ==========================================================
-# AI PHISHING DETECTION
-# Module 4 : Hyperparameter Tuning
-# ==========================================================
-
-import os
+import sys
 import time
+from pathlib import Path
 import joblib
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from sklearn.model_selection import (
-    train_test_split,
-    GridSearchCV
-)
 
 from sklearn.ensemble import RandomForestClassifier
-
+from sklearn.model_selection import GridSearchCV
 from sklearn.metrics import (
     accuracy_score,
     precision_score,
     recall_score,
     f1_score,
     roc_auc_score,
-    classification_report,
-    confusion_matrix,
-    ConfusionMatrixDisplay
+    classification_report
 )
 
-# ==========================================================
-# Create Required Folders
-# ==========================================================
+# Ensure root directory is accessible in sys.path
+root_directory = Path(__file__).resolve().parent.parent
+if str(root_directory) not in sys.path:
+    sys.path.insert(0, str(root_directory))
 
-os.makedirs("../models", exist_ok=True)
-os.makedirs("../graphs", exist_ok=True)
+from config import (
+    TUNED_MODEL_PATH,
+    FEATURE_NAMES_PATH,
+    TUNED_CONFUSION_MATRIX_GRAPH,
+    TUNED_FEATURE_IMPORTANCE_GRAPH,
+    RANDOM_STATE,
+    CV_FOLDS
+)
+from src.model_utils import (
+    load_feature_dataset,
+    validate_feature_dataset,
+    prepare_dataset_split,
+    split_train_test,
+    plot_and_save_confusion_matrix,
+    plot_and_save_feature_importance
+)
 
-# ==========================================================
-# Load Dataset
-# ==========================================================
-
-def load_dataset():
-
-    """Load dataset.
-    
-    Returns
-    -------
-    TYPE
-        Description of return value.
-    """
-    print("=" * 60)
-    print("Loading Dataset")
-    print("=" * 60)
-
-    try:
-
-        df = pd.read_csv("../data/features.csv")
-
-    except FileNotFoundError:
-
-        print("Error : features.csv not found.")
-
-        exit()
-
-    print(f"Dataset Loaded Successfully")
-
-    print(f"Rows    : {df.shape[0]}")
-
-    print(f"Columns : {df.shape[1]}")
-
-    print()
-
-    return df
-
-# ==========================================================
-# Validate Dataset
-# ==========================================================
-
-def validate_dataset(df):
-
-    """Validate dataset.
-    
-    Parameters
-    ----------
-    df : TYPE
-        Description of df.
-    
-    Raises
-    ------
-    Exception
-        If an error occurs during execution.
-    """
-    print("=" * 60)
-
-    print("Dataset Validation")
-
-    print("=" * 60)
-
-    if "label" not in df.columns:
-
-        raise ValueError(
-            "Dataset must contain 'label' column."
-        )
-
-    print("Missing Values")
-
-    print(df.isnull().sum())
-
-    print()
-
-    print("Dataset Information")
-
-    print(df.info())
-
-    print()
-
-    print("Class Distribution")
-
-    print(df["label"].value_counts())
-
-    print()
-    
-# ==========================================================
-# Split Dataset
-# ==========================================================
-
-def split_dataset(df):
-
-    """Split dataset.
-    
-    Parameters
-    ----------
-    df : TYPE
-        Description of df.
-    
-    Returns
-    -------
-    TYPE
-        Description of return value.
-    """
-    X = df.drop(
-        columns=["label"]
-    )
-
-    y = df["label"]
-
-    feature_names = X.columns.tolist()
-
-    return X, y, feature_names
-
-# ==========================================================
-# Train Test Split
-# ==========================================================
-
-def create_train_test_split(X, y):
-
-    """Create train test split.
-    
-    Parameters
-    ----------
-    X : TYPE
-        Description of X.
-    y : TYPE
-        Description of y.
-    
-    Returns
-    -------
-    TYPE
-        Description of return value.
-    """
-    X_train, X_test, y_train, y_test = train_test_split(
-
-        X,
-
-        y,
-
-        test_size=0.20,
-
-        random_state=42,
-
-        stratify=y
-
-    )
-
-    print("=" * 60)
-
-    print("Train Test Split")
-
-    print("=" * 60)
-
-    print(f"Training Samples : {len(X_train)}")
-
-    print(f"Testing Samples  : {len(X_test)}")
-
-    print()
-
-    return X_train, X_test, y_train, y_test
-
-# ==========================================================
-# Hyperparameter Grid
-# ==========================================================
 
 def create_parameter_grid():
+    """Create parameter grid dictionary for Random Forest tuning.
 
-    """Create parameter grid.
-    
     Returns
     -------
-    TYPE
-        Description of return value.
+    dict
+        Hyperparameter grid dictionary.
     """
-    param_grid = {
-
+    return {
         "n_estimators": [100, 200, 300],
-
         "max_depth": [10, 20, None],
-
         "min_samples_split": [2, 5, 10],
-
         "min_samples_leaf": [1, 2, 4]
-
     }
 
-    return param_grid
 
-# ==========================================================
-# Grid Search
-# ==========================================================
+def create_grid_search(parameter_grid):
+    """Instantiate GridSearchCV object for Random Forest.
 
-def create_grid_search(param_grid):
-
-    """Create grid search.
-    
     Parameters
     ----------
-    param_grid : TYPE
-        Description of param_grid.
-    
+    parameter_grid : dict
+        Hyperparameter search space.
+
     Returns
     -------
-    TYPE
-        Description of return value.
+    GridSearchCV
+        Grid search CV estimator instance.
     """
-    grid_search = GridSearchCV(
-
+    return GridSearchCV(
         estimator=RandomForestClassifier(
-
-            random_state=42,
-
+            random_state=RANDOM_STATE,
             n_jobs=-1
-
         ),
-
-        param_grid=param_grid,
-
-        cv=5,
-
+        param_grid=parameter_grid,
+        cv=CV_FOLDS,
         scoring="f1",
-
         n_jobs=-1,
-
-        verbose=2
-
+        verbose=1
     )
 
-    return grid_search
 
-# ==========================================================
-# Hyperparameter Tuning
-# ==========================================================
+def execute_tuning(grid_search_estimator, X_train, y_train):
+    """Fit grid search and log training duration and optimal parameters.
 
-def tune_model(grid_search, X_train, y_train):
-
-    """Tune model.
-    
     Parameters
     ----------
-    grid_search : TYPE
-        Description of grid_search.
-    X_train : TYPE
-        Description of X_train.
-    y_train : TYPE
-        Description of y_train.
-    
+    grid_search_estimator : GridSearchCV
+        Configured grid search object.
+    X_train : pd.DataFrame
+        Training features.
+    y_train : pd.Series
+        Training labels.
+
     Returns
     -------
-    TYPE
-        Description of return value.
+    object
+        Tuned best estimator model.
     """
     print("=" * 60)
     print("Hyperparameter Tuning Started")
     print("=" * 60)
 
     start_time = time.time()
+    grid_search_estimator.fit(X_train, y_train)
+    duration = time.time() - start_time
 
-    grid_search.fit(
-        X_train,
-        y_train
-    )
-
-    end_time = time.time()
-
-    training_time = end_time - start_time
-
-    print("\nHyperparameter Tuning Completed!")
-
-    print(f"Training Time : {training_time:.2f} seconds")
-
-    print()
-
+    print(f"\nHyperparameter Tuning Completed in {duration:.2f} seconds!\n")
     print("=" * 60)
     print("Best Hyperparameters")
     print("=" * 60)
 
-    for parameter, value in grid_search.best_params_.items():
+    for param_name, param_value in grid_search_estimator.best_params_.items():
+        print(f"{param_name:<20}: {param_value}")
 
-        print(f"{parameter:<20}: {value}")
+    print(f"\nBest Cross Validation F1 Score: {grid_search_estimator.best_score_:.4f}\n")
+    return grid_search_estimator.best_estimator_
 
-    print()
 
-    print(f"Best Cross Validation F1 Score : {grid_search.best_score_:.4f}")
+def evaluate_tuned_model(best_estimator, X_test, y_test):
+    """Evaluate tuned model performance metrics on test dataset.
 
-    print()
-
-    return grid_search.best_estimator_
-
-# ==========================================================
-# Evaluate Tuned Model
-# ==========================================================
-
-def evaluate_model(best_model, X_test, y_test):
-
-    """Evaluate model.
-    
     Parameters
     ----------
-    best_model : TYPE
-        Description of best_model.
-    X_test : TYPE
-        Description of X_test.
-    y_test : TYPE
-        Description of y_test.
-    
+    best_estimator : object
+        Fitted best model.
+    X_test : pd.DataFrame
+        Test features.
+    y_test : pd.Series
+        Test labels.
+
     Returns
     -------
-    TYPE
-        Description of return value.
+    tuple
+        (predictions_array, metrics_dict)
     """
     print("=" * 60)
     print("Evaluating Tuned Random Forest")
     print("=" * 60)
 
-    predictions = best_model.predict(X_test)
+    predictions = best_estimator.predict(X_test)
+    probabilities = best_estimator.predict_proba(X_test)[:, 1]
 
-    probabilities = best_model.predict_proba(X_test)[:,1]
+    acc = accuracy_score(y_test, predictions)
+    prec = precision_score(y_test, predictions)
+    rec = recall_score(y_test, predictions)
+    f1 = f1_score(y_test, predictions)
+    roc_auc = roc_auc_score(y_test, probabilities)
 
-    accuracy = accuracy_score(
-        y_test,
-        predictions
-    )
-
-    precision = precision_score(
-        y_test,
-        predictions
-    )
-
-    recall = recall_score(
-        y_test,
-        predictions
-    )
-
-    f1 = f1_score(
-        y_test,
-        predictions
-    )
-
-    roc_auc = roc_auc_score(
-        y_test,
-        probabilities
-    )
-
-    print(f"Accuracy  : {accuracy:.4f}")
-
-    print(f"Precision : {precision:.4f}")
-
-    print(f"Recall    : {recall:.4f}")
-
+    print(f"Accuracy  : {acc:.4f}")
+    print(f"Precision : {prec:.4f}")
+    print(f"Recall    : {rec:.4f}")
     print(f"F1 Score  : {f1:.4f}")
-
-    print(f"ROC AUC   : {roc_auc:.4f}")
-
-    print()
+    print(f"ROC AUC   : {roc_auc:.4f}\n")
 
     print("=" * 60)
     print("Classification Report")
     print("=" * 60)
+    print(classification_report(y_test, predictions))
 
-    print(
-
-        classification_report(
-
-            y_test,
-
-            predictions
-
-        )
-
-    )
-
-    metrics = {
-
-        "Accuracy": accuracy,
-
-        "Precision": precision,
-
-        "Recall": recall,
-
+    metrics_dict = {
+        "Accuracy": acc,
+        "Precision": prec,
+        "Recall": rec,
         "F1 Score": f1,
-
         "ROC AUC": roc_auc
-
     }
+    return predictions, metrics_dict
 
-    return predictions, metrics
 
-# ==========================================================
-# Compare Results
-# ==========================================================
+def save_tuned_model_artifacts(best_estimator, feature_names):
+    """Save tuned model and feature names pickle files to disk.
 
-def compare_results(metrics):
-
-    """Compare results.
-    
     Parameters
     ----------
-    metrics : TYPE
-        Description of metrics.
-    """
-    original_accuracy = 0.9953
-
-    tuned_accuracy = metrics["Accuracy"]
-
-    improvement = tuned_accuracy - original_accuracy
-
-    print("=" * 60)
-    print("Model Comparison")
-    print("=" * 60)
-
-    print(f"Original Accuracy : {original_accuracy*100:.2f}%")
-
-    print(f"Tuned Accuracy    : {tuned_accuracy*100:.2f}%")
-
-    print(f"Improvement       : {improvement*100:.3f}%")
-
-    print()
-    
-# ==========================================================
-# Confusion Matrix
-# ==========================================================
-
-def plot_confusion_matrix(predictions, y_test):
-
-    """Plot confusion matrix.
-    
-    Parameters
-    ----------
-    predictions : TYPE
-        Description of predictions.
-    y_test : TYPE
-        Description of y_test.
-    """
-    cm = confusion_matrix(
-        y_test,
-        predictions
-    )
-
-    disp = ConfusionMatrixDisplay(
-        confusion_matrix=cm,
-        display_labels=["Legitimate", "Phishing"]
-    )
-
-    plt.figure(figsize=(6,6))
-
-    disp.plot(
-        cmap="Blues",
-        values_format="d"
-    )
-
-    plt.title("Random Forest (Tuned) - Confusion Matrix")
-
-    plt.tight_layout()
-
-    plt.savefig(
-        "../graphs/tuned_confusion_matrix.png",
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.close()
-
-    print("Confusion Matrix Saved Successfully!")
-    
-# ==========================================================
-# Feature Importance
-# ==========================================================
-
-def plot_feature_importance(best_model, feature_names):
-
-    """Plot feature importance.
-    
-    Parameters
-    ----------
-    best_model : TYPE
-        Description of best_model.
-    feature_names : TYPE
-        Description of feature_names.
-    """
-    importance = pd.Series(
-        best_model.feature_importances_,
-        index=feature_names
-    )
-
-    importance = importance.sort_values()
-
-    plt.figure(figsize=(10,8))
-
-    importance.plot(kind="barh")
-
-    plt.title("Random Forest (Tuned) - Feature Importance")
-
-    plt.xlabel("Importance")
-
-    plt.tight_layout()
-
-    plt.savefig(
-        "../graphs/tuned_feature_importance.png",
-        dpi=300,
-        bbox_inches="tight"
-    )
-
-    plt.close()
-
-    print("Feature Importance Graph Saved Successfully!")
-    
-# ==========================================================
-# Save Tuned Model
-# ==========================================================
-
-def save_model(best_model, feature_names):
-
-    """Save model.
-    
-    Parameters
-    ----------
-    best_model : TYPE
-        Description of best_model.
-    feature_names : TYPE
-        Description of feature_names.
+    best_estimator : object
+        Tuned best model instance.
+    feature_names : list
+        Feature column names.
     """
     print("=" * 60)
     print("Saving Tuned Model")
     print("=" * 60)
 
-    joblib.dump(
+    TUNED_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
+    joblib.dump(best_estimator, TUNED_MODEL_PATH)
+    joblib.dump(feature_names, FEATURE_NAMES_PATH)
 
-        best_model,
+    print(f"Tuned Model Saved to {TUNED_MODEL_PATH}")
+    print(f"Feature Names Saved to {FEATURE_NAMES_PATH}\n")
 
-        "../models/phishing_detector_tuned.pkl"
-
-    )
-
-    joblib.dump(
-
-        feature_names,
-
-        "../models/phishing_feature_names.pkl"
-
-    )
-
-    print("Tuned Model Saved Successfully!")
-
-    print("Feature Names Saved Successfully!")
-
-    print()
-    
-# ==========================================================
-# Main
-# ==========================================================
 
 def main():
+    """Run hyperparameter tuning pipeline."""
+    feature_df = load_feature_dataset()
+    validate_feature_dataset(feature_df)
 
-    """Main.
-    """
-    df = load_dataset()
-
-    validate_dataset(df)
-
-    X, y, feature_names = split_dataset(df)
-
-    X_train, X_test, y_train, y_test = create_train_test_split(
-        X,
-        y
-    )
+    X, y, feature_names = prepare_dataset_split(feature_df)
+    X_train, X_test, y_train, y_test = split_train_test(X, y)
 
     param_grid = create_parameter_grid()
+    grid_search_estimator = create_grid_search(param_grid)
+    best_estimator = execute_tuning(grid_search_estimator, X_train, y_train)
 
-    grid_search = create_grid_search(param_grid)
+    predictions, metrics = evaluate_tuned_model(best_estimator, X_test, y_test)
+    save_tuned_model_artifacts(best_estimator, feature_names)
 
-    best_model = tune_model(
-        grid_search,
-        X_train,
-        y_train
+    plot_and_save_confusion_matrix(
+        predictions, X_test, y_test, TUNED_CONFUSION_MATRIX_GRAPH, "Random Forest (Tuned) - Confusion Matrix"
     )
-
-    predictions, metrics = evaluate_model(
-        best_model,
-        X_test,
-        y_test
-    )
-
-    compare_results(metrics)
-
-    plot_confusion_matrix(
-        predictions,
-        y_test
-    )
-
-    plot_feature_importance(
-        best_model,
-        feature_names
-    )
-
-    save_model(
-        best_model,
-        feature_names
+    plot_and_save_feature_importance(
+        best_estimator, feature_names, TUNED_FEATURE_IMPORTANCE_GRAPH, "Random Forest (Tuned) - Feature Importance"
     )
 
     print("=" * 60)
-
     print("Hyperparameter Tuning Completed Successfully!")
-
-    print("=" * 60)
-
-    print("Files Generated")
-
-    print()
-
-    print("Model")
-    print("  ../models/phishing_detector_tuned.pkl")
-
-    print()
-
-    print("Feature Names")
-    print("  ../models/phishing_feature_names.pkl")
-
-    print()
-
-    print("Graphs")
-    print("  ../graphs/tuned_confusion_matrix.png")
-    print("  ../graphs/tuned_feature_importance.png")
-
     print("=" * 60)
 
 
 if __name__ == "__main__":
-
     main()

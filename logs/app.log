@@ -19,3 +19,42 @@ ConnectionResetError: [WinError 10054] An existing connection was forcibly close
 2026-07-23 16:57:54,324 - INFO - Prediction completed with confidence 95.11
 2026-07-23 16:57:54,343 - INFO - Saved history entry for URL https://google.com
 2026-07-23 17:27:04,595 - INFO - App started
+2026-07-23 20:09:21,972 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 20:09:26,338 - INFO - Model and feature names loaded successfully
+2026-07-23 20:09:26,363 - INFO - Prediction started
+2026-07-23 20:09:26,575 - INFO - Prediction completed with confidence 95.11
+2026-07-23 20:09:26,578 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 20:09:26,701 - INFO - Model and feature names loaded successfully
+2026-07-23 20:09:26,704 - INFO - Prediction started
+2026-07-23 20:09:26,935 - INFO - Prediction completed with confidence 95.33
+2026-07-23 20:09:26,938 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 20:09:27,083 - INFO - Model and feature names loaded successfully
+2026-07-23 20:09:27,088 - INFO - Prediction started
+2026-07-23 20:09:27,267 - INFO - Prediction completed with confidence 95.81
+2026-07-23 20:09:27,271 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 20:09:27,394 - INFO - Model and feature names loaded successfully
+2026-07-23 20:09:27,397 - INFO - Prediction started
+2026-07-23 20:09:27,574 - INFO - Prediction completed with confidence 96.11
+2026-07-23 20:09:27,577 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 20:09:27,736 - INFO - Model and feature names loaded successfully
+2026-07-23 20:09:27,738 - INFO - Prediction started
+2026-07-23 20:09:27,903 - INFO - Prediction completed with confidence 95.11
+2026-07-23 20:09:27,906 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 20:09:28,062 - INFO - Model and feature names loaded successfully
+2026-07-23 20:09:28,068 - INFO - Prediction started
+2026-07-23 20:09:28,243 - INFO - Prediction completed with confidence 95.33
+2026-07-23 20:25:11,739 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 20:25:13,681 - INFO - Model and feature names loaded successfully
+2026-07-23 20:25:13,686 - INFO - Prediction started
+2026-07-23 20:25:13,805 - INFO - Prediction completed with confidence 92.19
+2026-07-23 20:25:40,600 - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\msain\anaconda3\envs\phishing_ai\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\msain\anaconda3\envs\phishing_ai\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-07-23 20:29:49,475 - INFO - App rendering started
+2026-07-23 20:30:02,884 - INFO - App rendering started
+2026-07-23 20:32:38,262 - INFO - App rendering started

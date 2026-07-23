@@ -1,212 +1,147 @@
 """Preprocess module for AI Phishing Detection.
 
-Provides utilities and application logic for the project.
+Cleans the raw URL dataset, generates www variants, extracts 37 lexical features,
+and outputs standardized datasets using centralized configuration paths.
 """
 
-import pandas as pd
 import re
-from feature_extractor import extract_features
+import sys
+from pathlib import Path
+import pandas as pd
 
-# -----------------------------------------------------
-# Label Mapping
-# Original Dataset:
-#   1 = Legitimate
-#   0 = Phishing
-#
-# Project Standard:
-#   0 = Legitimate
-#   1 = Phishing
-# -----------------------------------------------------
+# Ensure root directory is accessible in sys.path
+root_directory = Path(__file__).resolve().parent.parent
+if str(root_directory) not in sys.path:
+    sys.path.insert(0, str(root_directory))
+
+from config import (
+    PHISHING_DATASET_PATH,
+    RAW_URLS_PATH,
+    FEATURES_DATASET_PATH
+)
+from src.feature_extractor import extract_features
 
 LABEL_MAPPING = {
-    1: 0,
-    0: 1
+    1: 0,  # 1 in raw data -> Legitimate (0)
+    0: 1   # 0 in raw data -> Phishing (1)
 }
 
 
-# -----------------------------------------------------
-# Create raw_urls.csv
-# -----------------------------------------------------
-
 def create_raw_dataset():
+    """Load raw phishing dataset, standardize labels, deduplicate, and save raw_urls.csv.
 
-    """Create raw dataset.
-    
     Raises
     ------
-    Exception
-        If an error occurs during execution.
+    ValueError
+        If required columns are missing from the input dataset.
     """
     print("=" * 60)
     print("STEP 1 : Creating raw_urls.csv")
     print("=" * 60)
 
-    # Load original dataset
-    df = pd.read_csv("../data/phishing.csv")
+    original_df = pd.read_csv(PHISHING_DATASET_PATH)
+    print(f"Original Dataset : {len(original_df)} rows")
 
-    print(f"Original Dataset : {len(df)} rows")
-
-    # Check required columns
     required_columns = ["URL", "label"]
+    for column_name in required_columns:
+        if column_name not in original_df.columns:
+            raise ValueError(f"Missing required column: {column_name}")
 
-    for column in required_columns:
-        if column not in df.columns:
-            raise ValueError(f"Missing required column: {column}")
-
-    # Keep only URL and label
-    raw_df = df[["URL", "label"]].copy()
-
-    # Remove missing values
+    raw_df = original_df[["URL", "label"]].copy()
     raw_df.dropna(subset=["URL", "label"], inplace=True)
-
-    # Remove duplicate URLs
     raw_df.drop_duplicates(subset=["URL"], inplace=True)
-
-    # Convert labels to project standard
     raw_df["label"] = raw_df["label"].map(LABEL_MAPPING)
-
-    # Reset index
     raw_df.reset_index(drop=True, inplace=True)
 
-    # Save dataset
-    raw_df.to_csv("../data/raw_urls.csv", index=False)
+    RAW_URLS_PATH.parent.mkdir(parents=True, exist_ok=True)
+    raw_df.to_csv(RAW_URLS_PATH, index=False)
 
     print(f"Rows after cleaning : {len(raw_df)}")
-    print("raw_urls.csv saved successfully!\n")
+    print(f"raw_urls.csv saved successfully to {RAW_URLS_PATH}!\n")
 
 
-# -----------------------------------------------------
-# Create features.csv
-# -----------------------------------------------------
+def add_www_variants(url_df):
+    """Generate www-stripped URL variants to expand training data diversity.
 
-def add_www_variants(df):
-
-    """Add www variants.
-    
     Parameters
     ----------
-    df : TYPE
-        Description of df.
-    
+    url_df : pd.DataFrame
+        DataFrame containing URL and label columns.
+
     Returns
     -------
-    TYPE
-        Description of return value.
+    pd.DataFrame
+        Augmented DataFrame with deduplicated www variants.
     """
     variant_rows = []
 
-    for _, row in df.iterrows():
-
-        url = str(row["URL"])
-
+    for _, row in url_df.iterrows():
+        url_text = str(row["URL"])
         variant_url = re.sub(
             r"://www\.",
             "://",
-            url,
+            url_text,
             count=1,
             flags=re.IGNORECASE
         )
-
-        if variant_url != url:
-
-            variant_rows.append(
-                {
-                    "URL": variant_url,
-                    "label": row["label"]
-                }
-            )
+        if variant_url != url_text:
+            variant_rows.append({
+                "URL": variant_url,
+                "label": row["label"]
+            })
 
     if not variant_rows:
+        return url_df
 
-        return df
-
-    augmented_df = pd.concat(
-        [
-            df,
-            pd.DataFrame(variant_rows)
-        ],
-        ignore_index=True
-    )
-
-    augmented_df.drop_duplicates(
-        subset=["URL"],
-        inplace=True
-    )
-
-    augmented_df.reset_index(
-        drop=True,
-        inplace=True
-    )
-
+    augmented_df = pd.concat([url_df, pd.DataFrame(variant_rows)], ignore_index=True)
+    augmented_df.drop_duplicates(subset=["URL"], inplace=True)
+    augmented_df.reset_index(drop=True, inplace=True)
     return augmented_df
 
-def create_feature_dataset():
 
-    """Create feature dataset.
-    """
+def create_feature_dataset():
+    """Extract lexical features for all URLs in raw_urls.csv and save features.csv."""
     print("=" * 60)
     print("STEP 2 : Creating features.csv")
     print("=" * 60)
 
-    # Load raw dataset
-    df = pd.read_csv("../data/raw_urls.csv")
+    raw_df = pd.read_csv(RAW_URLS_PATH)
+    print(f"Raw Dataset Loaded : {len(raw_df)} URLs")
 
-    print(f"Raw Dataset Loaded : {len(df)} URLs")
-
-    df = add_www_variants(df)
-
-    print(f"Dataset After WWW Augmentation : {len(df)} URLs")
+    augmented_df = add_www_variants(raw_df)
+    print(f"Dataset After WWW Augmentation : {len(augmented_df)} URLs")
 
     feature_rows = []
-    skipped = 0
+    skipped_count = 0
 
-    # Extract features
-    for index, row in df.iterrows():
-
+    for index, row in augmented_df.iterrows():
         if (index + 1) % 10000 == 0:
             print(f"Processed {index + 1} URLs...")
-        
+
         try:
-
             features = extract_features(row["URL"])
-
             features["label"] = row["label"]
-
             feature_rows.append(features)
+        except Exception as exc_error:
+            skipped_count += 1
+            print(f"Skipped Row {index}: {exc_error}")
 
-        except Exception as e:
-
-            skipped += 1
-
-            print(f"Skipped Row {index}: {e}")
-
-    # Create DataFrame
     features_df = pd.DataFrame(feature_rows)
-
-    # Save dataset
-    features_df.to_csv("../data/features.csv", index=False)
+    FEATURES_DATASET_PATH.parent.mkdir(parents=True, exist_ok=True)
+    features_df.to_csv(FEATURES_DATASET_PATH, index=False)
 
     print("\nFeature Extraction Completed!")
-    print(f"Total URLs Processed : {len(df)}")
+    print(f"Total URLs Processed : {len(augmented_df)}")
     print(f"Successfully Processed : {len(features_df)}")
-    print(f"Skipped URLs : {skipped}")
-    print("features.csv saved successfully!\n")
-
+    print(f"Skipped URLs : {skipped_count}")
+    print(f"features.csv saved successfully to {FEATURES_DATASET_PATH}!\n")
     print(features_df.head())
 
 
-# -----------------------------------------------------
-# Main
-# -----------------------------------------------------
-
 def main():
-
-    """Main.
-    """
+    """Run full dataset preprocessing pipeline."""
     create_raw_dataset()
-
     create_feature_dataset()
-
     print("=" * 60)
     print("Dataset Preprocessing Completed Successfully!")
     print("=" * 60)
