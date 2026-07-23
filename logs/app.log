@@ -1,0 +1,21 @@
+2026-07-23 16:56:31,698 - ERROR - Exception in callback _ProactorBasePipeTransport._call_connection_lost(None)
+handle: <Handle _ProactorBasePipeTransport._call_connection_lost(None)>
+Traceback (most recent call last):
+  File "C:\Users\msain\anaconda3\envs\phishing_ai\Lib\asyncio\events.py", line 84, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Users\msain\anaconda3\envs\phishing_ai\Lib\asyncio\proactor_events.py", line 165, in _call_connection_lost
+    self._sock.shutdown(socket.SHUT_RDWR)
+ConnectionResetError: [WinError 10054] An existing connection was forcibly closed by the remote host
+2026-07-23 16:56:32,267 - INFO - App started
+2026-07-23 16:57:06,557 - INFO - App started
+2026-07-23 16:57:49,479 - INFO - App started
+2026-07-23 16:57:49,687 - INFO - App started
+2026-07-23 16:57:49,704 - INFO - User submitted URL: https://google.com
+2026-07-23 16:57:49,707 - INFO - Predict URL requested: https://google.com
+2026-07-23 16:57:49,708 - INFO - Loading AI model from C:\YBI-foundation\AI-Phishing-Detection\models\phishing_detector_tuned.pkl
+2026-07-23 16:57:54,012 - INFO - Model loaded successfully
+2026-07-23 16:57:54,012 - INFO - Feature names loaded successfully
+2026-07-23 16:57:54,027 - INFO - Prediction started
+2026-07-23 16:57:54,324 - INFO - Prediction completed with confidence 95.11
+2026-07-23 16:57:54,343 - INFO - Saved history entry for URL https://google.com
+2026-07-23 17:27:04,595 - INFO - App started

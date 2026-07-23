@@ -1,3 +1,8 @@
+"""Main module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 # from feature_extractor import extract_features
 # from train_model import *
 

@@ -1,3 +1,8 @@
+"""Train model module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 # ==========================================================
 # AI PHISHING DETECTION
 # Module 3 : Model Training
@@ -41,6 +46,13 @@ os.makedirs("../graphs", exist_ok=True)
 
 def load_dataset():
 
+    """Load dataset.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     print("=" * 60)
     print("Loading Dataset")
     print("=" * 60)
@@ -65,6 +77,18 @@ def load_dataset():
 
 def validate_dataset(df):
 
+    """Validate dataset.
+    
+    Parameters
+    ----------
+    df : TYPE
+        Description of df.
+    
+    Raises
+    ------
+    Exception
+        If an error occurs during execution.
+    """
     print("=" * 60)
     print("Dataset Validation")
     print("=" * 60)
@@ -96,6 +120,18 @@ def validate_dataset(df):
 
 def split_dataset(df):
 
+    """Split dataset.
+    
+    Parameters
+    ----------
+    df : TYPE
+        Description of df.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     X = df.drop(columns=["label"])
 
     y = df["label"]
@@ -110,6 +146,20 @@ def split_dataset(df):
 
 def create_train_test_split(X, y):
 
+    """Create train test split.
+    
+    Parameters
+    ----------
+    X : TYPE
+        Description of X.
+    y : TYPE
+        Description of y.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     X_train, X_test, y_train, y_test = train_test_split(
 
         X,
@@ -144,6 +194,13 @@ def create_train_test_split(X, y):
 
 def create_models():
 
+    """Create models.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     models = {
 
         "Logistic Regression": LogisticRegression(
@@ -175,6 +232,26 @@ def create_models():
 
 def train_models(models, X_train, X_test, y_train, y_test):
 
+    """Train models.
+    
+    Parameters
+    ----------
+    models : TYPE
+        Description of models.
+    X_train : TYPE
+        Description of X_train.
+    X_test : TYPE
+        Description of X_test.
+    y_train : TYPE
+        Description of y_train.
+    y_test : TYPE
+        Description of y_test.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     print("=" * 60)
     print("Training Machine Learning Models")
     print("=" * 60)
@@ -303,6 +380,20 @@ def train_models(models, X_train, X_test, y_train, y_test):
 
 def get_best_model(results, trained_models):
 
+    """Get best model.
+    
+    Parameters
+    ----------
+    results : TYPE
+        Description of results.
+    trained_models : TYPE
+        Description of trained_models.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     best_model_name = max(
 
         results,
@@ -339,6 +430,17 @@ def get_best_model(results, trained_models):
 
 def save_models(trained_models, best_model, feature_names):
 
+    """Save models.
+    
+    Parameters
+    ----------
+    trained_models : TYPE
+        Description of trained_models.
+    best_model : TYPE
+        Description of best_model.
+    feature_names : TYPE
+        Description of feature_names.
+    """
     print("=" * 60)
     print("Saving Models")
     print("=" * 60)
@@ -375,6 +477,17 @@ def save_models(trained_models, best_model, feature_names):
 
 def plot_confusion_matrix(best_model, X_test, y_test):
 
+    """Plot confusion matrix.
+    
+    Parameters
+    ----------
+    best_model : TYPE
+        Description of best_model.
+    X_test : TYPE
+        Description of X_test.
+    y_test : TYPE
+        Description of y_test.
+    """
     predictions = best_model.predict(X_test)
 
     cm = confusion_matrix(
@@ -407,6 +520,20 @@ def plot_confusion_matrix(best_model, X_test, y_test):
 
 def plot_feature_importance(best_model, feature_names):
 
+    """Plot feature importance.
+    
+    Parameters
+    ----------
+    best_model : TYPE
+        Description of best_model.
+    feature_names : TYPE
+        Description of feature_names.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     if not hasattr(best_model, "feature_importances_"):
 
         print("Feature Importance Not Available.")
@@ -445,6 +572,13 @@ def plot_feature_importance(best_model, feature_names):
 
 def plot_model_comparison(results):
 
+    """Plot model comparison.
+    
+    Parameters
+    ----------
+    results : TYPE
+        Description of results.
+    """
     accuracy = {
 
         name: values["Accuracy"]
@@ -508,6 +642,8 @@ def plot_model_comparison(results):
 
 def main():
 
+    """Main.
+    """
     df = load_dataset()
 
     validate_dataset(df)

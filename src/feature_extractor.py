@@ -1,3 +1,8 @@
+"""Feature extractor module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 import re
 import math
 from urllib.parse import urlparse

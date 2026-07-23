@@ -1,3 +1,8 @@
+"""Tune model module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 # ==========================================================
 # AI PHISHING DETECTION
 # Module 4 : Hyperparameter Tuning
@@ -40,6 +45,13 @@ os.makedirs("../graphs", exist_ok=True)
 
 def load_dataset():
 
+    """Load dataset.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     print("=" * 60)
     print("Loading Dataset")
     print("=" * 60)
@@ -70,6 +82,18 @@ def load_dataset():
 
 def validate_dataset(df):
 
+    """Validate dataset.
+    
+    Parameters
+    ----------
+    df : TYPE
+        Description of df.
+    
+    Raises
+    ------
+    Exception
+        If an error occurs during execution.
+    """
     print("=" * 60)
 
     print("Dataset Validation")
@@ -106,6 +130,18 @@ def validate_dataset(df):
 
 def split_dataset(df):
 
+    """Split dataset.
+    
+    Parameters
+    ----------
+    df : TYPE
+        Description of df.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     X = df.drop(
         columns=["label"]
     )
@@ -122,6 +158,20 @@ def split_dataset(df):
 
 def create_train_test_split(X, y):
 
+    """Create train test split.
+    
+    Parameters
+    ----------
+    X : TYPE
+        Description of X.
+    y : TYPE
+        Description of y.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     X_train, X_test, y_train, y_test = train_test_split(
 
         X,
@@ -156,6 +206,13 @@ def create_train_test_split(X, y):
 
 def create_parameter_grid():
 
+    """Create parameter grid.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     param_grid = {
 
         "n_estimators": [100, 200, 300],
@@ -176,6 +233,18 @@ def create_parameter_grid():
 
 def create_grid_search(param_grid):
 
+    """Create grid search.
+    
+    Parameters
+    ----------
+    param_grid : TYPE
+        Description of param_grid.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     grid_search = GridSearchCV(
 
         estimator=RandomForestClassifier(
@@ -206,6 +275,22 @@ def create_grid_search(param_grid):
 
 def tune_model(grid_search, X_train, y_train):
 
+    """Tune model.
+    
+    Parameters
+    ----------
+    grid_search : TYPE
+        Description of grid_search.
+    X_train : TYPE
+        Description of X_train.
+    y_train : TYPE
+        Description of y_train.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     print("=" * 60)
     print("Hyperparameter Tuning Started")
     print("=" * 60)
@@ -249,6 +334,22 @@ def tune_model(grid_search, X_train, y_train):
 
 def evaluate_model(best_model, X_test, y_test):
 
+    """Evaluate model.
+    
+    Parameters
+    ----------
+    best_model : TYPE
+        Description of best_model.
+    X_test : TYPE
+        Description of X_test.
+    y_test : TYPE
+        Description of y_test.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     print("=" * 60)
     print("Evaluating Tuned Random Forest")
     print("=" * 60)
@@ -332,6 +433,13 @@ def evaluate_model(best_model, X_test, y_test):
 
 def compare_results(metrics):
 
+    """Compare results.
+    
+    Parameters
+    ----------
+    metrics : TYPE
+        Description of metrics.
+    """
     original_accuracy = 0.9953
 
     tuned_accuracy = metrics["Accuracy"]
@@ -356,6 +464,15 @@ def compare_results(metrics):
 
 def plot_confusion_matrix(predictions, y_test):
 
+    """Plot confusion matrix.
+    
+    Parameters
+    ----------
+    predictions : TYPE
+        Description of predictions.
+    y_test : TYPE
+        Description of y_test.
+    """
     cm = confusion_matrix(
         y_test,
         predictions
@@ -393,6 +510,15 @@ def plot_confusion_matrix(predictions, y_test):
 
 def plot_feature_importance(best_model, feature_names):
 
+    """Plot feature importance.
+    
+    Parameters
+    ----------
+    best_model : TYPE
+        Description of best_model.
+    feature_names : TYPE
+        Description of feature_names.
+    """
     importance = pd.Series(
         best_model.feature_importances_,
         index=feature_names
@@ -426,6 +552,15 @@ def plot_feature_importance(best_model, feature_names):
 
 def save_model(best_model, feature_names):
 
+    """Save model.
+    
+    Parameters
+    ----------
+    best_model : TYPE
+        Description of best_model.
+    feature_names : TYPE
+        Description of feature_names.
+    """
     print("=" * 60)
     print("Saving Tuned Model")
     print("=" * 60)
@@ -458,6 +593,8 @@ def save_model(best_model, feature_names):
 
 def main():
 
+    """Main.
+    """
     df = load_dataset()
 
     validate_dataset(df)

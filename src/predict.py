@@ -1,3 +1,8 @@
+"""Predict module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 # ==========================================================
 # AI PHISHING DETECTION
 # Module 5 : URL Prediction
@@ -5,13 +10,15 @@
 
 import joblib
 import pandas as pd
-from pathlib import Path
 from urllib.parse import urlparse
 
+from utils.logger import logger
 from feature_extractor import extract_features
+from config import MODEL_PATH, FEATURE_NAMES_PATH
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-MODEL_DIR = PROJECT_ROOT / "models"
+
+class PredictionError(Exception):
+    """Raised when a URL prediction cannot be completed."""
 
 # ==========================================================
 # Load Trained Model
@@ -19,33 +26,32 @@ MODEL_DIR = PROJECT_ROOT / "models"
 
 def load_model():
 
-    print("=" * 60)
-    print("Loading AI Model")
-    print("=" * 60)
+    """Load model.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    
+    Raises
+    ------
+    Exception
+        If an error occurs during execution.
+    """
+    logger.info("Loading AI model from %s", MODEL_PATH)
 
     try:
+        model = joblib.load(MODEL_PATH)
+        feature_names = joblib.load(FEATURE_NAMES_PATH)
 
-        model = joblib.load(
-            MODEL_DIR / "phishing_detector_tuned.pkl"
-        )
-
-        feature_names = joblib.load(
-            MODEL_DIR / "phishing_feature_names.pkl"
-        )
-
-        print("Model Loaded Successfully!")
-
-        print("Feature Names Loaded Successfully!\n")
+        logger.info("Model loaded successfully")
+        logger.info("Feature names loaded successfully")
 
         return model, feature_names
 
-    except FileNotFoundError:
-
-        print("Error: Model files not found.")
-
-        print("Run train_model.py or tune_model.py first.")
-
-        exit()
+    except FileNotFoundError as exc:
+        logger.error("Model files not found: %s", exc)
+        raise
 
 # ==========================================================
 # User Input
@@ -53,6 +59,13 @@ def load_model():
 
 def get_url():
 
+    """Get url.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     print("=" * 60)
     print("Phishing URL Detector")
     print("=" * 60)
@@ -112,6 +125,20 @@ def is_trusted_domain(url):
 
 def prepare_features(url, feature_names):
 
+    """Prepare features.
+    
+    Parameters
+    ----------
+    url : TYPE
+        Description of url.
+    feature_names : TYPE
+        Description of feature_names.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     print("\nExtracting URL Features...\n")
 
     features = extract_features(url)
@@ -131,12 +158,31 @@ def prepare_features(url, feature_names):
 
 def predict_url(model, sample):
 
-    print("=" * 60)
-    print("Analyzing URL")
-    print("=" * 60)
+    """Predict url.
+    
+    Parameters
+    ----------
+    model : TYPE
+        Description of model.
+    sample : TYPE
+        Description of sample.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    
+    Raises
+    ------
+    Exception
+        If an error occurs during execution.
+    """
+    logger.info("Prediction started")
 
     if not isinstance(sample, pd.DataFrame):
-        raise TypeError("Prediction sample must be a pandas DataFrame.")
+        error_msg = "Prediction sample must be a pandas DataFrame."
+        logger.error(error_msg)
+        raise TypeError(error_msg)
 
     # Predict class
     prediction = model.predict(sample)[0]
@@ -145,12 +191,10 @@ def predict_url(model, sample):
     probabilities = model.predict_proba(sample)[0]
 
     legitimate_probability = probabilities[0] * 100
-
     phishing_probability = probabilities[1] * 100
-
     confidence = max(probabilities) * 100
 
-    print("Prediction Completed!\n")
+    logger.info("Prediction completed with confidence %.2f", confidence)
 
     result = {
 
@@ -172,6 +216,15 @@ def predict_url(model, sample):
 
 def display_result(url, result):
 
+    """Display result.
+    
+    Parameters
+    ----------
+    url : TYPE
+        Description of url.
+    result : TYPE
+        Description of result.
+    """
     print("\n" + "=" * 60)
     print("PHISHING DETECTION RESULT")
     print("=" * 60)
@@ -224,6 +277,8 @@ def display_result(url, result):
 
 def main():
 
+    """Main.
+    """
     model, feature_names = load_model()
 
     url = get_url()
@@ -258,29 +313,38 @@ def predict_from_url(url):
     Takes a URL and returns prediction results with features.
     """
 
-    model, feature_names = load_model()
+    try:
+        model, feature_names = load_model()
+        sample, features = prepare_features(
+            url,
+            feature_names
+        )
 
-    sample, features = prepare_features(
-        url,
-        feature_names
-    )
+        result = predict_url(
+            model,
+            sample
+        )
 
-    result = predict_url(
-        model,
-        sample
-    )
+        if is_trusted_domain(url) and result["prediction"] == 1:
+            # Override false positive on known safe domains.
+            result["prediction"] = 0
+            result["confidence"] = max(result["confidence"], 90.0)
+            result["legitimate_probability"] = max(result["legitimate_probability"], 95.0)
+            result["phishing_probability"] = min(result["phishing_probability"], 5.0)
+            features["trusted_domain"] = 1
+            logger.info("Trusted domain override applied for %s", url)
 
-    if is_trusted_domain(url) and result["prediction"] == 1:
-        # Override false positive on known safe domains.
-        result["prediction"] = 0
-        result["confidence"] = max(result["confidence"], 90.0)
-        result["legitimate_probability"] = max(result["legitimate_probability"], 95.0)
-        result["phishing_probability"] = min(result["phishing_probability"], 5.0)
-        features["trusted_domain"] = 1
-
-    result["features"] = features
-
-    return result
+        result["features"] = features
+        return result
+    except FileNotFoundError:
+        logger.exception("Model files missing while predicting URL %s", url)
+        raise
+    except (TypeError, ValueError, KeyError, pd.errors.EmptyDataError, pd.errors.ParserError) as exc:
+        logger.warning("Prediction processing failed for URL %s: %s", url, exc)
+        raise PredictionError("Unable to process the URL for prediction.") from exc
+    except Exception:
+        logger.exception("Unexpected prediction failure for URL %s", url)
+        raise
 
 
 if __name__ == "__main__":

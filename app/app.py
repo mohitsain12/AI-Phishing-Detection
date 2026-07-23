@@ -1,12 +1,35 @@
+"""App module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 import streamlit as st
 import sys
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-# Add src folder to Python path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
-from predict import predict_from_url
+# Add app, root, and src folders to Python path
+APP_DIR = os.path.abspath(os.path.dirname(__file__))
+ROOT_DIR = os.path.abspath(os.path.join(APP_DIR, ".."))
+sys.path.insert(0, APP_DIR)
+sys.path.insert(0, ROOT_DIR)
+sys.path.insert(0, os.path.abspath(os.path.join(APP_DIR, "../src")))
+
+from config import APP_NAME, MODEL_NAME, TOTAL_FEATURE_COUNT, LABEL_PHISHING, LABEL_LEGITIMATE
+from utils.logger import logger
+
+from utils.predictor import predict_url, PredictionError
+from utils.result_ui import show_result_card
+from utils.feature_panel import show_feature_panel
+from utils.recommendation import show_recommendation
+from utils.history import (
+    show_prediction_history,
+    show_recent_activity,
+    show_history_controls
+)
+from utils.charts import show_history_charts
+from utils.metrics import show_history_metrics
 
 from history import (
     save_prediction,
@@ -21,11 +44,13 @@ from explainer import explain_prediction
 # =============================================================
 
 st.set_page_config(
-    page_title="AI Phishing Detector",
+    page_title=APP_NAME,
     page_icon="🛡️",
     layout="centered",
     initial_sidebar_state="expanded"
 )
+
+logger.info("App started")
 
 # =============================================================
 # Custom CSS — Premium Dark Theme with Glassmorphism
@@ -438,9 +463,9 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("### 🤖 Model Info")
-    st.markdown("""
-    - **Algorithm**: Random Forest
-    - **Features**: 33 lexical URL features
+    st.markdown(f"""
+    - **Algorithm**: {MODEL_NAME}
+    - **Features**: {TOTAL_FEATURE_COUNT} lexical URL features
     - **Accuracy**: ~99.5%
     - **Training Data**: 100k+ URLs
     """)
@@ -448,9 +473,9 @@ with st.sidebar:
     st.markdown("---")
 
     st.markdown("### 🔬 How It Works")
-    st.markdown("""
-    1. **Extract** 33 features from the URL
-    2. **Analyze** using Random Forest ML model
+    st.markdown(f"""
+    1. **Extract** {TOTAL_FEATURE_COUNT} features from the URL
+    2. **Analyze** using {MODEL_NAME} ML model
     3. **Predict** phishing probability
     4. **Report** risk level & confidence
     """)
@@ -460,9 +485,9 @@ with st.sidebar:
 # Hero Section
 # =============================================================
 
-st.markdown("""
+st.markdown(f"""
 <div class="hero-title">
-    <h1>🛡️ PhishGuard AI</h1>
+    <h1>🛡️ {APP_NAME}</h1>
 </div>
 <p class="hero-subtitle">
     Detect phishing URLs instantly using Machine Learning.
@@ -495,9 +520,11 @@ st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
 # =============================================================
 
 if analyze:
+    logger.info("User submitted URL: %s", url)
 
     # --- Validation ---
     if not url or url.strip() == "":
+        logger.warning("Invalid URL entered: %s", url)
         st.markdown("""
         <div class="glass-card" style="text-align: center; border-color: rgba(250, 204, 21, 0.3);">
             <p style="color: #facc15; font-size: 1.1rem; font-weight: 600; margin: 0;">
@@ -516,299 +543,36 @@ if analyze:
             """, unsafe_allow_html=True)
 
             try:
-                result = predict_from_url(url)
+                result = predict_url(url)
                 feature_dict = result.get("features", {})
-            except Exception as e:
-                st.markdown(f"""
-                <div class="glass-card" style="text-align: center; border-color: rgba(248, 113, 113, 0.3);">
-                    <p style="color: #f87171; font-size: 1.1rem; font-weight: 600; margin: 0;">
-                        ❌ Error analyzing URL: {str(e)}
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
+            except PredictionError as exc:
+                logger.warning("User-correctable prediction error for URL %s: %s", url, exc)
+                st.error("Unable to analyze the URL. Please verify the address and try again.")
+                st.stop()
+            except FileNotFoundError:
+                logger.exception("Missing prediction model while analyzing URL %s", url)
+                st.error("The prediction model is currently unavailable. Please contact support.")
+                st.stop()
+            except Exception:
+                logger.exception("Unexpected error analyzing URL %s", url)
+                st.error("An unexpected error occurred while analyzing the URL. Please try again later.")
                 st.stop()
 
-        # --- Determine risk ---
         is_phishing = result["prediction"] == 1
         confidence = result["confidence"]
-        
-        prediction = "Phishing" if is_phishing else "Legitimate"
+        prediction = LABEL_PHISHING if is_phishing else LABEL_LEGITIMATE
 
         save_prediction(
             url=url,
             prediction=prediction,
             confidence=confidence
-            )
+        )
 
-        if is_phishing:
-            if confidence >= 95:
-                risk_label = "HIGH RISK"
-                risk_class = "risk-high"
-                risk_emoji = "🔴"
-            elif confidence >= 75:
-                risk_label = "MEDIUM RISK"
-                risk_class = "risk-medium"
-                risk_emoji = "🟠"
-            else:
-                risk_label = "LOW RISK"
-                risk_class = "risk-low"
-                risk_emoji = "🟡"
-        else:
-            risk_label = "SAFE"
-            risk_class = "risk-safe"
-            risk_emoji = "🟢"
-
-        # ────────────────────────────────────────────
-        # Result Card
-        # ────────────────────────────────────────────
-
-        badge_class = "danger" if is_phishing else "safe"
-        badge_text = "⚠️ PHISHING DETECTED" if is_phishing else "✅ LEGITIMATE WEBSITE"
-        badge_icon = "🚨" if is_phishing else "🛡️"
-
-        st.markdown(f"""
-        <div class="glass-card" style="text-align: center;">
-            <div style="font-size: 3rem; margin-bottom: 0.5rem;">{badge_icon}</div>
-            <div class="result-badge {badge_class}">{badge_text}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # ────────────────────────────────────────────
-        # Scanned URL
-        # ────────────────────────────────────────────
-
-        st.markdown('<div class="section-header">🔗 Scanned URL</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="url-display">{url}</div>', unsafe_allow_html=True)
-
-        # ────────────────────────────────────────────
-        # Metrics Row
-        # ────────────────────────────────────────────
-
-        st.markdown(f"""
-        <div class="metric-row">
-            <div class="metric-card legit">
-                <div class="label">Legitimate</div>
-                <div class="value">{result['legitimate_probability']:.1f}%</div>
-            </div>
-            <div class="metric-card phish">
-                <div class="label">Phishing</div>
-                <div class="value">{result['phishing_probability']:.1f}%</div>
-            </div>
-            <div class="metric-card conf">
-                <div class="label">Confidence</div>
-                <div class="value">{result['confidence']:.1f}%</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # ────────────────────────────────────────────
-        # Risk Level
-        # ────────────────────────────────────────────
-
-        st.markdown(f"""
-        <div class="risk-indicator {risk_class}">
-            <span style="font-size: 1.5rem;">{risk_emoji}</span>
-            <span>Risk Level: {risk_label}</span>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # ────────────────────────────────────────────
-        # Recommendation
-        # ────────────────────────────────────────────
-
-        if is_phishing:
-            rec_text = "🚨 <strong>Do NOT visit this website.</strong> This URL exhibits characteristics commonly associated with phishing attacks. It may attempt to steal your personal information."
-            rec_border = "rgba(248, 113, 113, 0.3)"
-            rec_bg = "rgba(248, 113, 113, 0.05)"
-        else:
-            rec_text = "✅ <strong>This URL appears safe.</strong> Our analysis indicates this is a legitimate website. However, always exercise caution when entering personal information online."
-            rec_border = "rgba(74, 222, 128, 0.3)"
-            rec_bg = "rgba(74, 222, 128, 0.05)"
-
-        st.markdown(f"""
-        <div style="
-            background: {rec_bg};
-            border: 1px solid {rec_border};
-            border-radius: 12px;
-            padding: 1.2rem 1.5rem;
-            margin: 1rem 0;
-            color: #e2e8f0;
-            font-size: 0.95rem;
-            line-height: 1.6;
-        ">
-            {rec_text}
-        </div>
-        """, unsafe_allow_html=True)
-
-        # ────────────────────────────────────────────
-        # Explanation & Feature Inspection
-        # ────────────────────────────────────────────
+        show_result_card(url, result)
+        show_recommendation(is_phishing)
 
         reasons = explain_prediction(feature_dict)
-
-        st.subheader("🔍 Why this prediction?")
-
-        for reason in reasons:
-            st.write(f"• {reason}")
-
-        st.markdown('<div class="custom-divider"></div>', unsafe_allow_html=True)
-
-        # =============================================================
-        # Feature Inspection Panel
-        # =============================================================
-
-        with st.expander("🔬 Feature Inspection Panel", expanded=False):
-            
-            st.markdown("""
-            <p style="color: #94a3b8; font-size: 0.9rem; margin-bottom: 1rem;">
-            Below are the 33 lexical features extracted from the URL. These features are analyzed by the Random Forest model to predict phishing.
-            </p>
-            """, unsafe_allow_html=True)
-            
-            # Create tabs for feature categories
-            tab1, tab2, tab3, tab4, tab5 = st.tabs([
-                "📏 URL Structure",
-                "🌐 Domain & TLD",
-                "🔤 Character Analysis",
-                "⚠️ Suspicious Patterns",
-                "📊 Advanced Metrics"
-            ])
-            
-            # ─────────────────────────────────────────────────
-            # Tab 1: URL Structure
-            # ─────────────────────────────────────────────────
-            with tab1:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.metric("URL Length", f"{feature_dict.get('url_length', 0)} chars")
-                    st.metric("Long URL (>75)", "✅ Yes" if feature_dict.get('long_url', 0) == 1 else "✅ No")
-                    st.metric("Parameter Count", feature_dict.get('parameter_count', 0))
-                    st.metric("Directory Depth", feature_dict.get('directory_depth', 0))
-                
-                with col2:
-                    st.metric("Total Dots", feature_dict.get('dots', 0))
-                    st.metric("Many Dots (≥4)", "⚠️ Yes" if feature_dict.get('many_dots', 0) == 1 else "✅ No")
-                    st.metric("Slashes", feature_dict.get('slashes', 0))
-                    st.metric("Question Marks", feature_dict.get('question_marks', 0))
-                
-                st.markdown("---")
-                
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.metric("Equal Signs", feature_dict.get('equal_signs', 0))
-                    st.metric("Ampersands", feature_dict.get('ampersands', 0))
-                with col2:
-                    st.metric("Underscores", feature_dict.get('underscores', 0))
-                    st.metric("HTTPS", "🔒 Yes" if feature_dict.get('https', 0) == 1 else "⚠️ No")
-            
-            # ─────────────────────────────────────────────────
-            # Tab 2: Domain & TLD
-            # ─────────────────────────────────────────────────
-            with tab2:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.metric("Domain Length", f"{feature_dict.get('domain_length', 0)} chars")
-                    st.metric("Long Domain", "⚠️ Yes" if feature_dict.get('long_domain', 0) == 1 else "✅ No")
-                    st.metric("Subdomains", feature_dict.get('subdomain_count', 0))
-                    st.metric("Domain Has Digits", "⚠️ Yes" if feature_dict.get('domain_has_digits', 0) == 1 else "✅ No")
-                
-                with col2:
-                    st.metric("TLD Length", feature_dict.get('tld_length', 0))
-                    st.metric("Suspicious TLD", "⚠️ Yes" if feature_dict.get('suspicious_tld', 0) == 1 else "✅ No")
-                    st.metric("WWW Count", feature_dict.get('www_count', 0))
-                    st.metric("Contains Email", "⚠️ Yes" if feature_dict.get('contains_email', 0) == 1 else "✅ No")
-            
-            # ─────────────────────────────────────────────────
-            # Tab 3: Character Analysis
-            # ─────────────────────────────────────────────────
-            with tab3:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.metric("Total Digits", feature_dict.get('digits', 0))
-                    st.metric("Digit Ratio", f"{feature_dict.get('digit_ratio', 0):.2%}")
-                    st.metric("Special Characters", feature_dict.get('special_characters', 0))
-                    st.metric("Special Char Ratio", f"{feature_dict.get('special_character_ratio', 0):.2%}")
-                
-                with col2:
-                    st.metric("Hyphen Count", "⚠️ Yes" if feature_dict.get('hyphen', 0) == 1 else "✅ No")
-                    st.metric("Double Hyphen", "⚠️ Yes" if feature_dict.get('double_hyphen', 0) == 1 else "✅ No")
-                    st.metric("@ Symbol", "⚠️ Yes" if feature_dict.get('at_symbol', 0) == 1 else "✅ No")
-                    st.metric("Repeated Chars", "⚠️ Yes" if feature_dict.get('repeated_chars', 0) == 1 else "✅ No")
-            
-            # ─────────────────────────────────────────────────
-            # Tab 4: Suspicious Patterns
-            # ─────────────────────────────────────────────────
-            with tab4:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.metric("URL Shortener", "⚠️ Yes" if feature_dict.get('url_shortener', 0) == 1 else "✅ No")
-                    st.metric("IP Address", "⚠️ Yes" if feature_dict.get('ip_address', 0) == 1 else "✅ No")
-                    st.metric("Has Port", "⚠️ Yes" if feature_dict.get('has_port', 0) == 1 else "✅ No")
-                    st.metric("Suspicious Extension", "⚠️ Yes" if feature_dict.get('has_suspicious_extension', 0) == 1 else "✅ No")
-                
-                with col2:
-                    st.metric("Multiple Special Chars", "⚠️ Yes" if feature_dict.get('multiple_special', 0) == 1 else "✅ No")
-                    st.metric("Keyword Count", feature_dict.get('keyword_count', 0))
-                    st.metric("Brand Count", feature_dict.get('brand_count', 0))
-                    st.metric("Starts with Digit", "⚠️ Yes" if feature_dict.get('starts_with_digit', 0) == 1 else "✅ No")
-            
-            # ─────────────────────────────────────────────────
-            # Tab 5: Advanced Metrics
-            # ─────────────────────────────────────────────────
-            with tab5:
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    entropy = feature_dict.get('entropy', 0)
-                    st.metric("URL Entropy", f"{entropy:.3f}")
-                    if entropy > 4.5:
-                        st.write("🔴 High entropy (suspicious)")
-                    elif entropy < 2.0:
-                        st.write("🟢 Low entropy (normal)")
-                    else:
-                        st.write("🟡 Medium entropy")
-                
-                with col2:
-                    pass
-                
-                st.markdown("---")
-                st.markdown("**Entropy Interpretation:**")
-                st.write("""
-                - **Low entropy (<2.0)**: URL contains predictable patterns (legitimate)
-                - **Medium entropy (2.0-4.5)**: Mix of predictable and random characters
-                - **High entropy (>4.5)**: URL contains mostly random characters (suspicious)
-                """)
-            
-            # ─────────────────────────────────────────────────
-            # Feature Summary Table
-            # ─────────────────────────────────────────────────
-            st.markdown("---")
-            st.markdown("**Complete Feature Dictionary:**")
-            
-            # Create a formatted table
-            feature_df = pd.DataFrame([feature_dict]).T
-            feature_df.columns = ["Value"]
-            feature_df = feature_df.reset_index()
-            feature_df.columns = ["Feature", "Value"]
-            
-            # Format values
-            feature_df["Value"] = feature_df["Value"].apply(
-                lambda x: f"{x:.4f}" if isinstance(x, float) else str(x)
-            )
-            
-            st.dataframe(
-                feature_df,
-                width="stretch",
-                hide_index=True,
-                column_config={
-                    "Feature": st.column_config.TextColumn("Feature Name", width="medium"),
-                    "Value": st.column_config.TextColumn("Value", width="small"),
-                }
-            )
+        show_feature_panel(feature_dict, reasons)
 
 # =============================================================
 # Prediction History
@@ -816,223 +580,19 @@ if analyze:
 
 history_df = load_history()
 st.markdown("---")
-st.subheader("📜 Prediction History")
-
-# Display Metrics
-col1, col2, col3, col4 = st.columns(4)
-
-total_predictions = len(history_df)
-
-phishing_count = len(
-    history_df[history_df["Prediction"] == "Phishing"]
-)
-
-legitimate_count = len(
-    history_df[history_df["Prediction"] == "Legitimate"]
-)
-
-average_confidence = history_df["Confidence"].mean()
-
-with col1:
-    st.metric("Total Predictions", total_predictions)
-
-with col2:
-    st.metric(
-        "Phishing",
-        phishing_count
-    )
-
-with col3:
-    st.metric(
-        "Legitimate",
-        legitimate_count
-    )
-
-with col4:
-    st.metric(
-        "Average Confidence",
-        f"{average_confidence:.2f}%"
-    )
-    
-
-    
-# =============================================================
-# Prediction history table
-# =============================================================
-
-
-if history_df.empty:
-    st.info("No prediction history available.")
-else:
-    with st.expander("📋 Prediction History", expanded=False):
-        st.dataframe(
-            history_df,
-            width="stretch",
-            hide_index=True
-        )
-
-
-# =============================================================
-# PIE chart of prediction
-# =============================================================
-
-
-if total_predictions > 0:
-    # Pie Chart
-    sizes = [legitimate_count, phishing_count]
-
-    labels = ["Legitimate", "Phishing"]
-
-    with st.expander("🥧 Prediction Distribution", expanded=False):
-        fig, ax = plt.subplots()
-
-        ax.pie(
-            sizes,
-            labels=labels,
-            autopct="%1.1f%%",
-            startangle=90
-        )
-
-        ax.axis("equal")
-
-        ax.set_title("Prediction Distribution")
-
-        st.pyplot(fig)
-else:
-    st.info("No prediction data available yet.")
-    
-# =============================================================
-# DAILy predection line chart
-# =============================================================
-
-
-if not history_df.empty:
-    # Convert Timestamp to datetime
-    history_df["Timestamp"] = pd.to_datetime(history_df["Timestamp"])
-    # Extract Date
-    history_df["Date"] = history_df["Timestamp"].dt.date
-    # Count predictions per day
-    daily_predictions = history_df.groupby("Date").size()
-    # Create Line Chart
-    with st.expander("📈 Daily Prediction Trend", expanded=False):
-        fig, ax = plt.subplots(figsize=(8,4))
-    
-        ax.plot(
-            daily_predictions.index,
-            daily_predictions.values,
-            marker="o"
-        )
-        ax.set_title("Daily Prediction Trend")
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Number of Predictions")
-        
-        plt.xticks(rotation=45)
-        
-        st.pyplot(fig)
-    
-
-else:
-    st.info("No prediction history available.")
-    
-    
-# =============================================================
-# Confidence Distribution Histogram
-# =============================================================
-
-if not history_df.empty:
-    # Create histogram
-    with st.expander("📊 Confidence Distribution", expanded=False):
-
-        confidence_scores = history_df["Confidence"]
-
-        fig, ax = plt.subplots(figsize=(8,4))
-
-        ax.hist(confidence_scores, bins=10)
-
-        ax.set_title("Confidence Distribution")
-        ax.set_xlabel("Confidence (%)")
-        ax.set_ylabel("Number of Predictions")
-
-        st.pyplot(fig)
-else:
-    st.info("No confidence data available.")
-
-
-# =============================================================
-# Recent activity  
-# =============================================================
-    
-
-history_df = history_df.sort_values(
-    by="Timestamp",
-    ascending=False
-)
-
-recent_predictions = history_df.head(5)
-
-with st.expander(
-    "📅 Recent Activity",
-    expanded=False
-):
-
-    for _, row in recent_predictions.iterrows():
-
-        if row["Prediction"] == "Phishing":
-            st.error("🔴 Phishing URL")
-        else:
-            st.success("🟢 Legitimate URL")
-
-        st.write(f"**🌐 URL:** {row['URL']}")
-
-        st.write(
-            f"**📊 Confidence:** {row['Confidence']:.2f}%"
-        )
-
-        st.write(
-            f"**🕒 Time:** {row['Timestamp']}"
-        )
-
-        st.divider()
-        
-        
-    
-# =============================================================
-# Clear history button   
-# =============================================================
-
-
-if st.button("🗑️ Clear History"):
-
-    clear_history()
-
-    st.success("Prediction history cleared successfully.")
-
-    st.rerun()
-
-
-# =============================================================
-# Download history button
-# =============================================================
-
-
-if not history_df.empty:
-
-    csv = history_df.to_csv(index=False)
-
-    st.download_button(
-        label="📥 Download History",
-        data=csv,
-        file_name="prediction_history.csv",
-        mime="text/csv"
-    )
+show_history_metrics(history_df)
+show_prediction_history(history_df)
+show_history_charts(history_df)
+show_recent_activity(history_df)
+show_history_controls(history_df, clear_history)
 
 # =============================================================
 # Footer
 # =============================================================
 
-st.markdown("""
+st.markdown(f"""
 <div class="footer">
-    <p>Built by <strong>Mohit Sain</strong> • AI Phishing Detection Project</p>
-    <p>Powered by Random Forest ML • 33 Lexical URL Features • 100k+ Training URLs</p>
+    <p>Built by <strong>Mohit Sain</strong> • {APP_NAME} Project</p>
+    <p>Powered by {MODEL_NAME} ML • {TOTAL_FEATURE_COUNT} Lexical URL Features • 100k+ Training URLs</p>
 </div>
 """, unsafe_allow_html=True)

@@ -1,16 +1,16 @@
 # 🛡️ AI Phishing Detection
 
-An intelligent phishing URL detection system powered by Machine Learning. Analyzes 33 lexical features of any URL to predict whether it's a legitimate website or a phishing attempt — achieving **~99.5% accuracy** with a Random Forest classifier.
+An intelligent phishing URL detection system powered by machine learning. This project extracts 33 URL features from a website URL and predicts whether it is phishing or legitimate using a Random Forest model.
 
 ---
 
 ## 🚀 Features
 
 - **33 URL Feature Extraction** — Analyzes URL length, domain structure, character patterns, entropy, suspicious keywords, and more
-- **4 ML Models Compared** — Logistic Regression, KNN, Decision Tree, and Random Forest
-- **Hyperparameter Tuning** — GridSearchCV optimization for the best model
-- **CLI Prediction** — Predict phishing URLs from the command line
-- **Streamlit Web App** — Premium dark-themed UI with real-time URL analysis
+- **Multi-model comparison** — Supports Logistic Regression, KNN, Decision Tree, and Random Forest
+- **Hyperparameter tuning** — Uses GridSearchCV for optimal model performance
+- **CLI prediction mode** — Run predictions directly from the command line
+- **Streamlit web application** — Interactive UI with prediction results, explanations, and history visualization
 
 ---
 
@@ -19,31 +19,19 @@ An intelligent phishing URL detection system powered by Machine Learning. Analyz
 ```
 AI-Phishing-Detection/
 ├── app/
-│   └── app.py                    # Streamlit web application
-├── data/
-│   ├── phishing.csv              # Original dataset
-│   ├── raw_urls.csv              # Preprocessed (URL + label only)
-│   └── features.csv              # Extracted feature dataset
-├── graphs/
-│   ├── confusion_matrix.png      # Model confusion matrix
-│   ├── feature_importance.png    # Feature importance chart
-│   └── model_comparison.png      # Model accuracy comparison
-├── models/
-│   ├── logistic_model.pkl        # Logistic Regression
-│   ├── knn_model.pkl             # K-Nearest Neighbors
-│   ├── decision_tree_model.pkl   # Decision Tree
-│   ├── random_forest_model.pkl   # Random Forest (best)
-│   ├── best_model.pkl            # Copy of best model
-│   └── phishing_feature_names.pkl# Feature names list
-├── src/
-│   ├── preprocess.py             # Step 1: Data preprocessing
-│   ├── feature_extractor.py      # Step 2: URL feature extraction
-│   ├── train_model.py            # Step 3: Model training & comparison
-│   ├── tune_model.py             # Step 4: Hyperparameter tuning
-│   ├── predict.py                # Step 5: URL prediction
-│   └── main.py                   # Testing script
-├── requirments.txt
-└── README.md
+│   ├── app.py                    # Streamlit web application entrypoint
+│   ├── explainer.py              # Prediction explanation logic
+│   ├── history.py                # Prediction history persistence
+│   └── utils/                    # Streamlit UI helper modules
+├── config.py                    # Application constants and paths
+├── data/                        # Dataset and generated feature history
+├── graphs/                      # Visual reports and analysis charts
+├── models/                      # Trained model artifacts and feature mappings
+├── scripts/                     # Utility scripts and automation helpers
+├── src/                         # Model training, preprocessing, and prediction logic
+├── tests/                       # Unit tests
+├── requirments.txt              # Project dependencies
+└── README.md                    # Project overview and usage
 ```
 
 ---
@@ -89,18 +77,18 @@ phishing.csv  →  preprocess.py  →  raw_urls.csv  →  feature_extractor.py  
 pip install -r requirments.txt
 ```
 
-### 2. Run the Full Pipeline (Optional — pre-built models included)
+### 2. Run the Full Pipeline (Optional)
 
 ```bash
 cd src
 
-# Step 1 & 2: Preprocess data and extract features
+# Preprocess raw data and generate features
 python preprocess.py
 
-# Step 3: Train and compare all 4 models
+# Train and compare multiple models
 python train_model.py
 
-# Step 4: Tune the best model (Random Forest)
+# Tune the best model with grid search
 python tune_model.py
 ```
 
@@ -111,11 +99,17 @@ cd src
 python predict.py
 ```
 
-### 4. Launch Web App
+### 4. Launch the Streamlit Web App
 
 ```bash
 streamlit run app/app.py
 ```
+
+### Notes
+
+- The `models/` directory should contain pre-trained model artifacts.
+- The `data/` directory stores the dataset and prediction history.
+- If you use the Streamlit app, open the browser URL shown after launch.
 
 ---
 

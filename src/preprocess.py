@@ -1,3 +1,8 @@
+"""Preprocess module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 import pandas as pd
 import re
 from feature_extractor import extract_features
@@ -25,6 +30,13 @@ LABEL_MAPPING = {
 
 def create_raw_dataset():
 
+    """Create raw dataset.
+    
+    Raises
+    ------
+    Exception
+        If an error occurs during execution.
+    """
     print("=" * 60)
     print("STEP 1 : Creating raw_urls.csv")
     print("=" * 60)
@@ -69,6 +81,18 @@ def create_raw_dataset():
 
 def add_www_variants(df):
 
+    """Add www variants.
+    
+    Parameters
+    ----------
+    df : TYPE
+        Description of df.
+    
+    Returns
+    -------
+    TYPE
+        Description of return value.
+    """
     variant_rows = []
 
     for _, row in df.iterrows():
@@ -118,6 +142,8 @@ def add_www_variants(df):
 
 def create_feature_dataset():
 
+    """Create feature dataset.
+    """
     print("=" * 60)
     print("STEP 2 : Creating features.csv")
     print("=" * 60)
@@ -175,6 +201,8 @@ def create_feature_dataset():
 
 def main():
 
+    """Main.
+    """
     create_raw_dataset()
 
     create_feature_dataset()

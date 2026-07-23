@@ -1,3 +1,8 @@
+"""Explainer module for AI Phishing Detection.
+
+Provides utilities and application logic for the project.
+"""
+
 def explain_prediction(feature_dict):
     """
     Generate human-readable reasons based on extracted URL features.
